@@ -59,10 +59,10 @@ int main(int argc, char *argv[]) {
 
   // TODO: will need a way to grow TCP connections
   //       unclear how managing connections should be done
-  //int p_size = START_PFDS;
-  //int p_cons = 1;
-  //struct pollfd *pfds = malloc(sizeof(struct pollfd)*p_size);
-  //pfds[0].fd = listenfd, pfds[0].events = POLLIN;
+  int p_size = START_PFDS;
+  int p_cons = 1;
+  struct pollfd *pfds = malloc(sizeof(struct pollfd)*p_size);
+  pfds[0].fd = listenfd, pfds[0].events = POLLIN;
 
   // timespecs for tracking regular intervals
   struct timespec curr_time, last_stab, last_ff, last_cp;
@@ -72,21 +72,77 @@ int main(int argc, char *argv[]) {
 
   // main loop
   while (1) {
-    int p = poll(pfds, p_cons, 100);    
+    int p = poll(pfds, p_cons, 10);    
     clock_gettime(CLOCK_REALTIME, &curr_time);
 
     // calls update functions at appropriate intervals
     void update_chord(args, &curr_time, &last_stab, &last_ff, &last_cp);
 
     // TODO: handling incoming messages
-            
+    // handling packets
+
+    for (int i = 0; i < p_cons && p != 0; i++) {
+      if (pfds[i].revents & POLLIN) {
+	if (pfds[i].fd == listenfd) {
+	  // socket that listen for incoming connections
+	  fprintf(stderr, "detected and adding new connection\n");
+	  int fd = accept(sock, (struct sockaddr*)
+			  &client_addr,&addr_size);
+	  assert(fd >= 0);	
+	  add_connection(&pfds,fd,&p_cons,&p_size);
+	} else {
+	  // socket for an existing chord connection
+	  // TODO: may want a recv_all function?
+	  int r = recv(pfds[i].fd, buf, BUFFER_SIZE, 0);	
+
+	  if (r < 0) {
+	    // error case
+	    fprintf(stderr, "error\n");
+	  } else if (r == 0) {
+	    // connection closed case
+	    remove_connection(&pfds,pfds[i],&p_cons);
+	  } else {
+	    // normal message case
+	    // TODO: handle message appropriately
+	    
+	  }
+	}
+      }
+    }
   }
       
   return 0;
 }
 
 
+// adds connection to pollfd array; handles p_cons, p_size, ect.
+void add_connection(struct pollfd **pfds, int fd,
+		    int *p_cons, int *p_size) {
+  if (*p_cons >= *p_size) {
+    *p_size = 2*(*p_size);
+    *pfds = realloc(*pfds, sizeof(struct pollfd)*(*p_size));
+  }
 
+  (*pfds)[*p_cons].fd = fd;
+  (*pfds)[*p_cons].events = POLLIN;
+  (*p_cons)++;
+}
+
+// removes connection from pollfd array; handles p_cons, p_size, ect.
+void remove_connection(struct pollfd **pfds, int fd, int* p_cons) {
+  close(fd);
+  int i = 0;
+  while ((*pfds)[i].fd != fd)
+    i++;
+  while (i-1 < *p_cons) {
+    (*pfds)[i] = (*pfds)[i+1];
+    i++;
+  }
+
+  *p_cons = (*p_cons)-1;
+}
+
+// calls update functions if time interval has passed
 void update_chord(struct chord_arguments *args,
 		  struct timespec *curr_time, struct timespec *last_stab,
 		  struct timespec *last_ff, struct timespec *last_cp) {
@@ -107,6 +163,7 @@ void update_chord(struct chord_arguments *args,
   }    
 }
 
+// returns double of t2 - t1
 double time_diff(struct timespec *t1, struct timespec *t2) {
   double result = (double) (t2->tv_sec - t1->tv_sec);
   result += ((double)(t2->tv_nsec - t1->tv_nsec))
@@ -114,6 +171,7 @@ double time_diff(struct timespec *t1, struct timespec *t2) {
   return result;
 }
 
+// converts deciseconds to seconds
 double deci_to_sec(int time) {
   return (double time)/10;
 }
