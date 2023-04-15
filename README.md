@@ -1,92 +1,150 @@
-# a4
+# Assignment 4
 
+## DUE
+**April 20, 2023 11:59:59 PM ET**
 
+## Provided Resources
+See the assignment specification and see the example hash code in the A4 materials.
 
-## Getting started
+## Chord Client
+Args:
+* -p \<Number> The port that the Chord client will bind to and listen on. Represented as a base-10 integer. Must be specified.
+* --sp \<Number> The time in deciseconds between invocations of 'stabilize'. Represented as a base-10 integer. Must be specified, with a value in the range of [1, 600].
+* --ffp \<Number> The time in deciseconds between invocations of 'fix_fingers'. Represented as a base-10 integer. Must be specified, with a value in the range of [1, 600].
+* --cpp \<Number> The time in deciseconds between invocations of 'check_predececssor'. Represented as a base-10 integer. Must be specified, with a value in the range of [1, 600].
+* --ja \<String> The IP address of the machine running a Chord node. The Chord client will join this node’s ring. Represented as an ASCII string (e.g., 128.8.126.63). Must be specified if --jp is specified.
+* --jp \<String> The port that an existing Chord node is bound to and listening on. The Chord client will join this node’s ring. Represented as a base-10 integer. Must be specified if --ja is specified.
+* -r \<Number> The number of successors maintained by the Chord client. Represetned as a base-10 integer. Must be specified, with a value in the range of [1, 32]
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
-
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
-
+An example usage to start a new Chord ring is:
 ```
-cd existing_repo
-git remote add origin https://gitlab.cs.umd.edu/cmsc417-s23/pairs/sdeboy-raffaele/a4.git
-git branch -M main
-git push -uf origin main
+chord -p 4170 --sp 5 --ffp 6 --cpp 7 -r 4
 ```
 
-## Integrate with your tools
+An example usage to join an existing Chord ring is:
+```
+chord -p 4171 --ja 128.8.126.63 --jp 4170 --sp 5 --ffp 6 --cpp 7 -r 4
+```
 
-- [ ] [Set up project integrations](https://gitlab.cs.umd.edu/cmsc417-s23/pairs/sdeboy-raffaele/a4/-/settings/integrations)
+NOTE: The join address is only an exemplary, there will be no Chord node running
+and that's the wrong address for cerf anyway.
 
-## Collaborate with your team
+The Chord client will open a TCP socket and listen for incoming connections on port specified
+by -p. If neither --ja nor --jp is specified, then the Chord client starts a new ring by invoking
+‘create’. The Chord client will initialize the successor list and finger table appropriately (i.e., all
+will point to itself).
+Otherwise, the Chord client joins an existing ring by connecting to the Chord client specified
+by --ja and --jp and invoking ‘join’. The initial steps the Chord client takes when joining the
+network are described in detail in Section IV.E.1 “Node Joins and Stabilization” of the Chord
+paper.
+Periodically, the Chord client will invoke various stabilization routines in order to handle
+nodes joining and leaving the network. The Chord client will invoke ‘stabilize’, ‘fix fingers’, and
+‘check predecessor’ every --sp, --ffp, and --cpp seconds, respectively.
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Automatically merge when pipeline succeeds](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
 
-## Test and Deploy
+### Commands
+The Chord client will handle commands by reading from stdin and writing to
+stdout. There are two command that the Chord client must support: ‘Lookup’ and ‘PrintState’.
+User input must be prepended by `> ` and output must be prepended by `< `.
 
-Use the built-in continuous integration in GitLab.
+All nodes are printed in the form:
+```
+<Node ID> <Node IP> <Node Port>
+```
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing(SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+‘Lookup’ takes as input an ASCII string (e.g., “Hello”). The Chord client takes this string,
+hashes it to a key in the identifier space, and performs a search for the node that is the successor
+to the key (i.e., the owner of the key). The Chord client then outputs that node’s identifier, IP
+address, and port. Example:
+```
+> Lookup Hello
+< Hello 17870176168342380699
+< 3567812885933644873 128.8.126.63 2001
+```
+Where the command is of the form:
+```
+Lookup <String>
+```
 
-***
+Such that the output of `Lookup` is of the form:
+```
+<Lookup String> <Lookup String ID/Key>
+<Node ID> <Node IP> <Node Port>
+```
 
-# Editing this README
+‘PrintState’ requires no input. The Chord client outputs its local state information at the
+current time, which consists of:
+1. The Chord client’s own node information
+2. The node information for all nodes in the successor list
+3. The node information for all nodes in the finger table
+where “node information” corresponds to the identifier, IP address, and port for a given node.
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thank you to [makeareadme.com](https://www.makeareadme.com/) for this template.
+An example sequence of command inputs and outputs at a Chord client is shown below. There
+are three participants in the ring (including the Chord client itself) and -r is set to 2. You may
+assume the same formatting for the input, and must match the same formatting for your ouput.
+“>” and “<” represent stdin and stdout respectively. The input commands will be terminated
+by newlines (‘\n’).
 
-## Suggestions for a good README
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+Example:
+```
+> Lookup Hello
+< Hello 17870176168342380699
+< 3567812885933644873 128.8.126.63 2001
 
-## Name
-Choose a self-explaining name for your project.
+> Lookup World
+< World 8124633097568820307
+< 9013248200782045821 128.8.126.63 2003
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+> PrintState
+< Self 3567812885933644873 128.8.126.63 2001
+< Successor [1] 8045897832921729661 128.8.126.63 2002
+< Successor [2] 9013248200782045821 128.8.126.63 2003
+< Finger [1] 8045897832921729661 128.8.126.63 2002
+< Finger [2] 8045897832921729661 128.8.126.63 2002
+...
+< Finger [63] 8045897832921729661 128.8.126.63 2002
+< Finger [64] 8045897832921729661 128.8.126.63 2002
+```
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+Where `Self`, `Successor` and `Finger` each put out their respective Chord Node,
+as laid out in the format above.
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+## Implementation
+We'll be using Google Protocol Buffers (protobuf) for handing messages passed between nodes.
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+### chord.proto
+The following messages are provided:
+- `NotifyRequest`
+- `NotifyResponse`
+- `FindSuccessorRequest`
+- `FindSuccessorResponse`
+- `rFindSuccReq`
+- `rFindSuccResp`
+- `GetPredecessorRequest`
+- `GetPredecessorResponse`
+- `CheckPredecessorRequest`
+- `CheckPredecessorResponse`
+- `GetSuccessorListRequest`
+- `GetSuccessorListResponse`
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+The supplementary message `Node` is also supplied, meant to be a *sub*-message, that contains the necessary information about a Chord Node.
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+We've also created the message `ChordMessage` which will contain **one of** the request/response messages listed above at a time. You can demux on the `ChordMessage`'s `msg_case` field, which will tell you which message it contains. See the [oneof example](https://github.com/protobuf-c/protobuf-c/wiki/Examples#oneofs) in the protobuf-c wiki.
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+Every `ChordMessage` has an *optional* `query_id` associated with it. If used, it should be set **randomly** for queries and echoe'd back in the response.
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+Note the `rFindSucc*` messages are for a recursive search through the Chord ring, rather than iteratively.
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+### struct Message
+You'll see the `Message` struct defined within `chord.h`. This is the format messages should be sent to other Chord nodes. Essentially, you must prepend the length of the protobuf message so that the receiver knows the size of the `ChordMessage`.
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+### Keys / Identifiers
+Keys, or identifiers (ID), are based off a SHA-1 hashes of data. We'll be truncating its SHA-1 hash to be only 64 bits for ease of use.
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+The identifier for a node should be the 64-bit truncated SHA-1 sum of the node’s IP address and port number, but how the IP address and port number are input to the hash function is up to you (e.g., as a string, or byte array). 
 
-## License
-For open source projects, say how it is licensed.
+You can use the `sha1sum_truncated_head` function from `hash.h` to grab the first 64 bits of the SHA-1 hash in the form of an integer.
+See `printKey` in `chord.c` on how to properly print out a 64 bit integer.
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+## Piazza
+Please tag any questions pertaining to this assignment with `a4`.
