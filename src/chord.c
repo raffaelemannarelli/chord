@@ -186,7 +186,7 @@ int main(int argc, char *argv[]) {
 
   // obtain node_key hash
   node_key = hash_addr(&args.my_address);
-  own_node = NODE__INIT;
+  node__init(&own_node);
   own_node.address = args.my_address.sin_port;
   own_node.port = args.my_address.sin_addr.s_addr;
   own_node.key = node_key;
