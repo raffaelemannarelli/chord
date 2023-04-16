@@ -1,4 +1,7 @@
 #include <inttypes.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 
 #include "chord.pb-c.h"
 
@@ -26,7 +29,7 @@ void printKey(uint64_t key);
 void stabilize();
 void fix_fingers();
 void check_predecessor();
-void create(sockaddr_in ***succ);
-void join(sockaddr_in ***succ);
+void create();
+void join(struct sockaddr_in *join_addr);
 void handle_message(int fd, ChordMessage *msg);
 int hash_addr(struct sockaddr_in *addr);

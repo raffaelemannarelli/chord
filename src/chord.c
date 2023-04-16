@@ -4,6 +4,9 @@
 #include <poll.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 
 #include "chord_arg_parser.h"
 #include "chord.h"
@@ -20,7 +23,7 @@ Node *finger_table[160];
 Node *predecessor;
 Node **successors;
 int n_successors;
-uint64 node_key;
+uint64_t node_key;
 
 // TODO: FIGURE OUT IF query_id in msg IS IMPORTANT
 
@@ -44,54 +47,64 @@ void check_predecessor() {
 }
 
 // handles creating ring from first chord
-void create(sockaddr_in ***succ) {
-  finger_table[0] = malloc(sizeof(Node));
-  finger_table[0]->
+void create() {
   // pseudocode sets to self. Use NULL instead?
 }
 
 // TODO
 // handles joining a chord to existing ring
-void join(sockaddr_in ***succ, sockaddr_in *join_addr) {
-  // TODO: implement find successor call
+void join(struct sockaddr_in *join_addr) {
   int sock = init_socket();
-  assert(connect(sock, (sockaddr*)join_addr, sizeof(struct sockaddr)) >= 0);
+  printf("connecting at port %d\n", join_addr->sin_port);
+  int c = connect(sock, (struct sockaddr*)join_addr, sizeof(struct sockaddr));
+  
+  if (c != 0)
+    fprintf(stderr, "%s\n",strerror(errno));
+  assert(c >= 0);
 
   ChordMessage msg = CHORD_MESSAGE__INIT;
-  GetSucessorListRequest request = GET_SUCCESSOR_LIST_REQUEST__INIT;
-  msg.msg_case = &request;
+  FindSuccessorRequest request = FIND_SUCCESSOR_REQUEST__INIT;
+  request.key = node_key;
+  msg.msg_case = CHORD_MESSAGE__MSG_FIND_SUCCESSOR_REQUEST;
+  msg.find_successor_request = &request;
 
-  int len = chord_message__get_packet_size(&msg);
+  int len = chord_message__get_packed_size(&msg);
   char buf[BUFFER_SIZE];
 
   chord_message__pack(&msg,buf);
 
   send(sock, buf, len, 0);
   int msg_len = recv(sock, buf, BUFFER_SIZE, 0);
+  ChordMessage *response = chord_message__unpack(NULL, msg_len, buf);
 
-  msg = chord_message__unpack(NULL, msg_len, buf);
+  // put received node into sucessors list
+  successors[0] = malloc(sizeof(Node));
+  memcpy(successors[0],response->find_successor_response->node,sizeof(Node));
 
-  GetSucessorListResponse *response = msg.msg_case;
-  
-  for (int i = 0)
-  
-  chord_message__free_unpacked(msg, NULL);
-    
+  chord_message__free_unpacked(response, NULL);
   close(sock);
 }
 
 // TODO; no idea if any of this is correct
 void handle_message(int fd, ChordMessage *msg) {
   char buf[BUFFER_SIZE];
-  ChordMessage msg = CHORD_MESSAGE__INIT;
   // TODO: need to generalize this for all cases
-  GetSuccessorListResponse response;
+  // can we use the oneof functionality???
   if (msg->msg_case == CHORD_MESSAGE__MSG_NOTIFY_REQUEST) {
     // notify
   } else if (msg->msg_case == CHORD_MESSAGE__MSG_FIND_SUCCESSOR_REQUEST) {
     // finds and returns successor for requesting node
     fprintf(stderr, "find successor request received\n");
-    
+    // TODO: INCORRECT PROCEDURE; IMPLEMENTED IN ORDER TO TEST COMMUNICATION
+    ChordMessage res_msg = CHORD_MESSAGE__INIT;
+    FindSuccessorResponse response = FIND_SUCCESSOR_RESPONSE__INIT;
+    response.node = successors[0];
+    res_msg.msg_case = CHORD_MESSAGE__MSG_FIND_SUCCESSOR_RESPONSE;
+    res_msg.find_successor_response = &response;
+    // pack and send message
+    int msg_len = chord_message__get_packed_size(&msg);
+    chord_message__pack(&msg,buf);
+    int s = send(fd, buf, msg_len, 0);
   } else if (msg->msg_case == CHORD_MESSAGE__MSG_GET_PREDECESSOR_REQUEST) {
     // get predecessor
     fprintf(stderr, "get predecessor request received\n");
@@ -101,7 +114,7 @@ void handle_message(int fd, ChordMessage *msg) {
   } else if (msg->msg_case == CHORD_MESSAGE__MSG_GET_SUCCESSOR_LIST_REQUEST) {
     // this sends own successor list???
     // TODO: this
-    fprintf(stderr, "successor list request received\n");
+    /*fprintf(stderr, "successor list request received\n");
     response = GET_SUCCESSOR_LIST_RESPONSE__INIT;
     response.n_successors = n_successors;
     Node **node = malloc(sizeof(Node*)n_successors);
@@ -112,14 +125,11 @@ void handle_message(int fd, ChordMessage *msg) {
       node[i]->address = successor[i].sin_addr.s_addr;
       node[i]->port = successor[i].sin_port;
     }
-    msg.msg_case = &response;    
+    msg.msg_case = &response;    */
   } else if (msg->msg_case == CHORD_MESSAGE__MSG_R_FIND_SUCC_REQ) {
     // r find successor
     fprintf(stderr, "r find successor request received\n");
   }
-  // pack and send message
-  chord_message__pack(&msg,buf);
-  int s = send(fd, buf, len, 0);
 }
 
 // calls update functions if time interval has passed
@@ -151,8 +161,8 @@ int hash_addr(struct sockaddr_in *addr) {
   assert(ctx != NULL);
   // copy ip and port to hash
   unsigned char	port_and_addr[6];
-  memcpy(port_and_addr, addr->sin_addr, 4);
-  memcpy(port_and_addr+4, addr->sin_port, 2);
+  memcpy(port_and_addr, &addr->sin_addr, 4);
+  memcpy(port_and_addr+4, &addr->sin_port, 2);
   // call hash and return truncated value
   sha1sum_finish(ctx, port_and_addr, 6, checksum);
   sha1sum_destroy(ctx);
@@ -169,7 +179,7 @@ int main(int argc, char *argv[]) {
   // book-keeping for surrounding nodes
   predecessor = NULL;
   successors = malloc(sizeof(Node *)*args.num_successors);
-  for (int i = 0; i < args.num_sucessors; i++)
+  for (int i = 0; i < args.num_successors; i++)
     successors[i] = NULL;
   n_successors = 0;
   
@@ -178,13 +188,16 @@ int main(int argc, char *argv[]) {
   assert(bind(listenfd,(struct sockaddr*)&(args.my_address),
 	      sizeof(struct sockaddr_in) >= 0));
   assert(listen(listenfd, BACKLOG) >= 0);
+  fprintf(stderr, "listening on %d\n", args.my_address.sin_port);
 
   if (args.join_address.sin_port == 0) {
+    fprintf(stderr, "creating ring\n");
     // TODO: check this is a correct way to distinguish no join address
     // no join address was given    
-    create(&sucessors);
+    create(&successors);
   } else {
-    join(&sucessors, &(args.join_address));
+    fprintf(stderr, "joining ring\n");
+    join(&(args.join_address));
     // TODO: need to get all sucessor nodes after node obtained during join
   }
     
@@ -203,8 +216,9 @@ int main(int argc, char *argv[]) {
   struct sockaddr_in client_addr;
   socklen_t addr_size = sizeof(client_addr);
   // main loop
+  fprintf(stderr, "entering listening loop\n");
   while (1) {
-    int p = poll(pfds, p_cons, 10);    
+    int p = poll(pfds, p_cons, 50);    
     clock_gettime(CLOCK_REALTIME, &curr_time);
 
     // calls update functions at appropriate intervals
@@ -214,6 +228,7 @@ int main(int argc, char *argv[]) {
     // handling packets
     for (int i = 0; i < p_cons && p != 0; i++) {
       if (pfds[i].revents & POLLIN) {
+	fprintf(stderr, "got message\n");
 	if (pfds[i].fd == listenfd) {
 	  // socket that listen for incoming connections
 	  fprintf(stderr, "detected and adding new connection\n");
