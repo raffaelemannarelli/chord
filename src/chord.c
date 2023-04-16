@@ -14,6 +14,13 @@
 #define START_PFDS 16
 #define BUFFER_SIZE 1024
 
+// global variables
+Node *predecessor;
+Node **successors;
+int n_successors;
+
+// TODO: FIGURE OUT IF query_id in msg IS IMPORTANT
+
 void printKey(uint64_t key) {
   printf("%" PRIu64, key);
 }
@@ -33,29 +40,53 @@ void check_predecessor() {
 
 }
 
-// TODO
 // handles creating ring from first chord
-void create() {
-
+void create(sockaddr_in ***succ) {
+  // pseudocode sets to self. Use NULL instead?
 }
 
 // TODO
 // handles joining a chord to existing ring
-void join() {
-  //int joinfd = init_socket(&(args.join_address));
-  //assert(connect(joinfd,(struct sockaddr*)&(args.join_address),
-  //		 sizeof(struct sockaddr_in)) >= 0);
+void join(sockaddr_in ***succ, sockaddr_in *join_addr) {
+  // TODO: implement find successor call
+  int sock = init_socket();
+  assert(connect(sock, (sockaddr*)join_addr, sizeof(struct sockaddr)) >= 0);
+
+  ChordMessage msg = CHORD_MESSAGE__INIT;
+  GetSucessorListRequest request = GET_SUCCESSOR_LIST_REQUEST__INIT;
+  msg.msg_case = &request;
+
+  int len = chord_message__get_packet_size(&msg);
+  char buf[BUFFER_SIZE];
+
+  chord_message__pack(&msg,buf);
+
+  send(sock, buf, len, 0);
+  int msg_len = recv(sock, buf, BUFFER_SIZE, 0);
+
+  msg = chord_message__unpack(NULL, msg_len, buf);
+
+  GetSucessorListResponse *response = msg.msg_case;
   
+  for (int i = 0)
+  
+  chord_message__free_unpacked(msg, NULL);
+    
+  close(sock);
 }
 
 // TODO; no idea if any of this is correct
-void handle_message(ChordMessage *msg) {
+void handle_message(int fd, ChordMessage *msg) {
+  char buf[BUFFER_SIZE];
+  ChordMessage msg = CHORD_MESSAGE__INIT;
+  // TODO: need to generalize this for all cases
+  GetSuccessorListResponse response;
   if (msg->msg_case == CHORD_MESSAGE__MSG_NOTIFY_REQUEST) {
     // notify
-    fprintf(stderr, "notify request received\n");
   } else if (msg->msg_case == CHORD_MESSAGE__MSG_FIND_SUCCESSOR_REQUEST) {
-    // find successor
+    // finds and returns successor for requesting node
     fprintf(stderr, "find successor request received\n");
+    
   } else if (msg->msg_case == CHORD_MESSAGE__MSG_GET_PREDECESSOR_REQUEST) {
     // get predecessor
     fprintf(stderr, "get predecessor request received\n");
@@ -63,12 +94,27 @@ void handle_message(ChordMessage *msg) {
     // check predecessor
     fprintf(stderr, "check predecessor request received\n");
   } else if (msg->msg_case == CHORD_MESSAGE__MSG_GET_SUCCESSOR_LIST_REQUEST) {
-    // get successor list
+    // this sends own successor list???
+    // TODO: this
     fprintf(stderr, "successor list request received\n");
+    response = GET_SUCCESSOR_LIST_RESPONSE__INIT;
+    response.n_successors = n_successors;
+    Node **node = malloc(sizeof(Node*)n_successors);
+    for (int i = 0; i < n_successors; i++) {
+      node[i] = malloc(sizeof(struct Node));
+      (*node[i]) = NODE__INIT;
+      // TODO: is key parameter unused for a host node???
+      node[i]->address = successor[i].sin_addr.s_addr;
+      node[i]->port = successor[i].sin_port;
+    }
+    msg.msg_case = &response;    
   } else if (msg->msg_case == CHORD_MESSAGE__MSG_R_FIND_SUCC_REQ) {
     // r find successor
     fprintf(stderr, "r find successor request received\n");
   }
+  // pack and send message
+  chord_message__pack(&msg,buf);
+  int s = send(fd, buf, len, 0);
 }
 
 // calls update functions if time interval has passed
@@ -96,9 +142,13 @@ int main(int argc, char *argv[]) {
   // arguments from parser  
   struct chord_arguments args = chord_parseopt(argc,argv);
 
-  // array for holding r known successors sockets
-  int successors[args.num_successors];
-
+  // book-keeping for surrounding nodes
+  predecessor = NULL;
+  successors = malloc(sizeof(Node *)*args.num_successors);
+  for (int i = 0; i < args.num_sucessors; i++)
+    successors[i] = NULL;
+  n_successors = 0;
+  
   // create and bind listening socket for incoming connections
   int listenfd = init_socket();
   assert(bind(listenfd,(struct sockaddr*)&(args.my_address),
@@ -108,9 +158,10 @@ int main(int argc, char *argv[]) {
   if (args.join_address.sin_port == 0) {
     // TODO: check this is a correct way to distinguish no join address
     // no join address was given    
-    create();
+    create(&sucessors);
   } else {
-    join();
+    join(&sucessors, &(args.join_address));
+    // TODO: need to get all sucessor nodes after node obtained during join
   }
     
   // pfds table and book-keeping to manage all connections
@@ -159,7 +210,7 @@ int main(int argc, char *argv[]) {
 	    // normal message case
 	    ChordMessage *msg = chord_message__unpack(NULL, msg_len, buf);
 	    assert(msg != NULL);
-	    handle_message(msg);
+	    handle_message(pfds[i].fd, msg);
 	    chord_message__free_unpacked(msg, NULL);
 	  }
 	}
