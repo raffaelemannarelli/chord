@@ -8,6 +8,7 @@
 
 #define BACKLOG 16
 #define START_PFDS 16
+#define BUFFER_SIZE 1024
 
 void printKey(uint64_t key) {
   printf("%" PRIu64, key);
@@ -26,6 +27,34 @@ void fix_fingers() {
 // TODO
 void check_predecessor() {
 
+}
+
+// TODO
+void join() {
+  
+}
+
+// TODO; no idea if any of this is correct
+void handle_message(ChordMessage *msg) {
+  if (msg->oneof_name_case == CHORDMESSAG__ONEOF_MSG_NOTIFYREQUEST) {
+    // notify
+    fprintf(stderr, "notify request received\n");
+  } else if (msg->oneof_name_case == CHORDMESSAG__ONEOF_MSG_FINDSUCCESSORREQUEST) {
+    // find successor
+    fprintf(stderr, "find successor request received\n");
+  } else if (msg->oneof_name_case == CHORDMESSAG__ONEOF_MSG_GETPREDECESSORREQUEST) {
+    // get predecessor
+    fprintf(stderr, "get predecessor request received\n");
+  } else if (msg->oneof_name_case == CHORDMESSAG__ONEOF_MSG_CHECKPREDECESSORREQUEST) {
+    // check predecessor
+    fprintf(stderr, "check predecessor request received\n");
+  } else if (msg->oneof_name_case == CHORDMESSAG__ONEOF_MSG_GETSUCCESSORLISTREQUEST) {
+    // get successor list
+    fprintf(stderr, "successor list request received\n");
+  } else if (msg->oneof_name_case == CHORDMESSAG__ONEOF_MSG_RFINDSECCREQ) {
+    // r find successor
+    fprintf(stderr, "r find successor request received\n");
+  }
 }
 
 // creates socket from sockaddr_in pointer
@@ -56,7 +85,6 @@ int main(int argc, char *argv[]) {
   // TODO: implement joining procedure
   join();
 
-
   // TODO: will need a way to grow TCP connections
   //       unclear how managing connections should be done
   int p_size = START_PFDS;
@@ -70,6 +98,7 @@ int main(int argc, char *argv[]) {
   clock_gettime(CLOCK_REALTIME, &last_ff);
   clock_gettime(CLOCK_REALTIME, &last_cp);
 
+  char buf[BUFFER_SIZE];
   // main loop
   while (1) {
     int p = poll(pfds, p_cons, 10);    
@@ -80,7 +109,6 @@ int main(int argc, char *argv[]) {
 
     // TODO: handling incoming messages
     // handling packets
-
     for (int i = 0; i < p_cons && p != 0; i++) {
       if (pfds[i].revents & POLLIN) {
 	if (pfds[i].fd == listenfd) {
@@ -92,8 +120,7 @@ int main(int argc, char *argv[]) {
 	  add_connection(&pfds,fd,&p_cons,&p_size);
 	} else {
 	  // socket for an existing chord connection
-	  // TODO: may want a recv_all function?
-	  int r = recv(pfds[i].fd, buf, BUFFER_SIZE, 0);	
+	  int msg_len = recv(pfds[i].fd, buf, BUFFER_SIZE, 0);	
 
 	  if (r < 0) {
 	    // error case
@@ -104,16 +131,18 @@ int main(int argc, char *argv[]) {
 	  } else {
 	    // normal message case
 	    // TODO: handle message appropriately
-	    
+	    // TODO: check format on these functions
+	    ChordMessage *msg = chordmesssage__unpack(NULL, msg_len, buf);
+	    assert(msg != NULL);
+	    handle_message(msg);	    
+	    chordmessage__free_unpacked(msg, NULL);
 	  }
 	}
       }
     }
-  }
-      
+  }      
   return 0;
 }
-
 
 // adds connection to pollfd array; handles p_cons, p_size, ect.
 void add_connection(struct pollfd **pfds, int fd,
