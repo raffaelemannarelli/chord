@@ -13,12 +13,14 @@
 #include "hash.h"
 #include "helper.h"
 
-#define BACKLOG 16
+
 #define START_PFDS 16
 #define BUFFER_SIZE 1024
 
 // global variables
 // finger_table size set to bit length of SHA-1
+// NEED TO INITIALIZE ALL NODES IN ORDER TO PACK
+Node own_node;
 Node *finger_table[160];
 Node *predecessor;
 Node **successors;
@@ -54,12 +56,13 @@ void create() {
 // TODO
 // handles joining a chord to existing ring
 void join(struct sockaddr_in *join_addr) {
-  int sock = init_socket();
+  int sock = socket_and_assert();
   printf("connecting at port %d\n", join_addr->sin_port);
   int c = connect(sock, (struct sockaddr*)join_addr, sizeof(struct sockaddr));
   
   if (c != 0)
     fprintf(stderr, "%s\n",strerror(errno));
+  fflush(stdout);
   assert(c >= 0);
 
   ChordMessage msg = CHORD_MESSAGE__INIT;
@@ -76,11 +79,14 @@ void join(struct sockaddr_in *join_addr) {
   send(sock, buf, len, 0);
   int msg_len = recv(sock, buf, BUFFER_SIZE, 0);
   ChordMessage *response = chord_message__unpack(NULL, msg_len, buf);
+  fprintf(stderr, "got response of len %d and unpacked\n", msg_len);
 
   // put received node into sucessors list
   successors[0] = malloc(sizeof(Node));
   memcpy(successors[0],response->find_successor_response->node,sizeof(Node));
-
+  fprintf(stderr, "copied sucessfully\n");
+  fflush(stderr);
+  
   chord_message__free_unpacked(response, NULL);
   close(sock);
 }
@@ -98,12 +104,16 @@ void handle_message(int fd, ChordMessage *msg) {
     // TODO: INCORRECT PROCEDURE; IMPLEMENTED IN ORDER TO TEST COMMUNICATION
     ChordMessage res_msg = CHORD_MESSAGE__INIT;
     FindSuccessorResponse response = FIND_SUCCESSOR_RESPONSE__INIT;
-    response.node = successors[0];
+    if (n_successors == 0)
+      response.node = &own_node;
+    else
+      response.node = successors[0];
     res_msg.msg_case = CHORD_MESSAGE__MSG_FIND_SUCCESSOR_RESPONSE;
     res_msg.find_successor_response = &response;
     // pack and send message
-    int msg_len = chord_message__get_packed_size(&msg);
-    chord_message__pack(&msg,buf);
+    int msg_len = chord_message__get_packed_size(&res_msg);
+    chord_message__pack(&res_msg,buf);
+    fprintf(stderr, "packing of size %d\n", msg_len);
     int s = send(fd, buf, msg_len, 0);
   } else if (msg->msg_case == CHORD_MESSAGE__MSG_GET_PREDECESSOR_REQUEST) {
     // get predecessor
@@ -136,6 +146,7 @@ void handle_message(int fd, ChordMessage *msg) {
 void update_chord(struct chord_arguments *args,
 		  struct timespec *curr_time, struct timespec *last_stab,
 		  struct timespec *last_ff, struct timespec *last_cp) {
+  fprintf(stderr, "updating chord\n");
   if (time_diff(last_stab,curr_time) >
       deci_to_sec(args->stabilize_period)) {
     stabilize();
@@ -175,6 +186,10 @@ int main(int argc, char *argv[]) {
 
   // obtain node_key hash
   node_key = hash_addr(&args.my_address);
+  own_node = NODE__INIT;
+  own_node.address = args.my_address.sin_port;
+  own_node.port = args.my_address.sin_addr.s_addr;
+  own_node.key = node_key;
   
   // book-keeping for surrounding nodes
   predecessor = NULL;
@@ -184,12 +199,10 @@ int main(int argc, char *argv[]) {
   n_successors = 0;
   
   // create and bind listening socket for incoming connections
-  int listenfd = init_socket();
-  assert(bind(listenfd,(struct sockaddr*)&(args.my_address),
-	      sizeof(struct sockaddr_in) >= 0));
-  assert(listen(listenfd, BACKLOG) >= 0);
-  fprintf(stderr, "listening on %d\n", args.my_address.sin_port);
-
+  int listenfd = socket_and_assert();
+  bind_and_assert(listenfd,(struct sockaddr*)&args.my_address);
+  listen_and_assert(listenfd);
+  
   if (args.join_address.sin_port == 0) {
     fprintf(stderr, "creating ring\n");
     // TODO: check this is a correct way to distinguish no join address
@@ -218,7 +231,7 @@ int main(int argc, char *argv[]) {
   // main loop
   fprintf(stderr, "entering listening loop\n");
   while (1) {
-    int p = poll(pfds, p_cons, 50);    
+    int p = poll(pfds, p_cons, 100);    
     clock_gettime(CLOCK_REALTIME, &curr_time);
 
     // calls update functions at appropriate intervals

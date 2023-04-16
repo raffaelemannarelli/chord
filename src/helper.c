@@ -7,6 +7,8 @@
 #include <unistd.h>
 #include <sys/socket.h>
 
+#define BACKLOG 16
+
 // adds connection to pollfd array; handles p_cons, p_size, ect.
 void add_connection(struct pollfd **pfds, int fd,
 		    int *p_cons, int *p_size) {
@@ -48,8 +50,18 @@ double deci_to_sec(int time) {
 }
 
 // creates socket from sockaddr_in pointer and asserts valid
-int init_socket() {
+int socket_and_assert() {
   int sockfd = socket(AF_INET, SOCK_STREAM, 0);
   assert(sockfd >= 0);
   return sockfd;
+}
+
+void bind_and_assert(int sock, struct sockaddr* addr) {
+  int b = bind(sock, addr, sizeof(*addr));
+  assert(b >= 0);
+}
+
+void listen_and_assert(int sock) {
+  int l = listen(sock, BACKLOG);
+  assert(l >= 0);
 }

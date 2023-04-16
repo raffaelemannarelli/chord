@@ -11,4 +11,6 @@ void update_chord(struct chord_arguments *args,
 double time_diff(struct timespec *t1,
 		 struct timespec *t2);
 double deci_to_sec(int time);
-int init_socket();
+int socket_and_assert();
+void bind_and_assert(int sock, struct sockaddr* addr);
+void listen_and_assert(int sock);
