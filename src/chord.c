@@ -36,22 +36,22 @@ void join() {
 
 // TODO; no idea if any of this is correct
 void handle_message(ChordMessage *msg) {
-  if (msg->oneof_name_case == CHORDMESSAG__ONEOF_MSG_NOTIFYREQUEST) {
+  if (msg->oneof_name_case == CHORDMESSAGE__ONEOF_MSG_NOTIFYREQUEST) {
     // notify
     fprintf(stderr, "notify request received\n");
-  } else if (msg->oneof_name_case == CHORDMESSAG__ONEOF_MSG_FINDSUCCESSORREQUEST) {
+  } else if (msg->oneof_name_case == CHORDMESSAGE__ONEOF_MSG_FINDSUCCESSORREQUEST) {
     // find successor
     fprintf(stderr, "find successor request received\n");
-  } else if (msg->oneof_name_case == CHORDMESSAG__ONEOF_MSG_GETPREDECESSORREQUEST) {
+  } else if (msg->oneof_name_case == CHORDMESSAGE__ONEOF_MSG_GETPREDECESSORREQUEST) {
     // get predecessor
     fprintf(stderr, "get predecessor request received\n");
-  } else if (msg->oneof_name_case == CHORDMESSAG__ONEOF_MSG_CHECKPREDECESSORREQUEST) {
+  } else if (msg->oneof_name_case == CHORDMESSAGE__ONEOF_MSG_CHECKPREDECESSORREQUEST) {
     // check predecessor
     fprintf(stderr, "check predecessor request received\n");
-  } else if (msg->oneof_name_case == CHORDMESSAG__ONEOF_MSG_GETSUCCESSORLISTREQUEST) {
+  } else if (msg->oneof_name_case == CHORDMESSAGE__ONEOF_MSG_GETSUCCESSORLISTREQUEST) {
     // get successor list
     fprintf(stderr, "successor list request received\n");
-  } else if (msg->oneof_name_case == CHORDMESSAG__ONEOF_MSG_RFINDSECCREQ) {
+  } else if (msg->oneof_name_case == CHORDMESSAGE__ONEOF_MSG_RFINDSECCREQ) {
     // r find successor
     fprintf(stderr, "r find successor request received\n");
   }
