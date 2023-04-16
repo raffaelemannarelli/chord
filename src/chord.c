@@ -11,6 +11,7 @@
 #include "chord_arg_parser.h"
 #include "chord.h"
 #include "hash.h"
+#include "message.h"
 #include "helper.h"
 
 
@@ -56,65 +57,31 @@ void create() {
 // TODO
 // handles joining a chord to existing ring
 void join(struct sockaddr_in *join_addr) {
-  int sock = socket_and_assert();
-  printf("connecting at port %d\n", join_addr->sin_port);
-  int c = connect(sock, (struct sockaddr*)join_addr, sizeof(struct sockaddr));
-  
-  if (c != 0)
-    fprintf(stderr, "%s\n",strerror(errno));
-  fflush(stdout);
+  int fd = socket_and_assert();
+  int c = connect(fd, (struct sockaddr*)join_addr, sizeof(struct sockaddr));
   assert(c >= 0);
 
-  ChordMessage msg = CHORD_MESSAGE__INIT;
-  FindSuccessorRequest request = FIND_SUCCESSOR_REQUEST__INIT;
-  request.key = node_key;
-  msg.msg_case = CHORD_MESSAGE__MSG_FIND_SUCCESSOR_REQUEST;
-  msg.find_successor_request = &request;
-
-  int len = chord_message__get_packed_size(&msg);
-  char buf[BUFFER_SIZE];
-
-  chord_message__pack(&msg,buf);
-
-  send(sock, buf, len, 0);
-  int msg_len = recv(sock, buf, BUFFER_SIZE, 0);
-  ChordMessage *response = chord_message__unpack(NULL, msg_len, buf);
-  fprintf(stderr, "got response of len %d and unpacked\n", msg_len);
+  ChordMessage response;
+  find_successor_request(&response, fd, &own_node);
 
   // put received node into sucessors list
   successors[0] = malloc(sizeof(Node));
   memcpy(successors[0],response->find_successor_response->node,sizeof(Node));
-  fprintf(stderr, "copied sucessfully\n");
-  fflush(stderr);
   
-  chord_message__free_unpacked(response, NULL);
   close(sock);
 }
 
 // TODO; no idea if any of this is correct
 void handle_message(int fd, ChordMessage *msg) {
-  char buf[BUFFER_SIZE];
-  // TODO: need to generalize this for all cases
-  // can we use the oneof functionality???
   if (msg->msg_case == CHORD_MESSAGE__MSG_NOTIFY_REQUEST) {
     // notify
   } else if (msg->msg_case == CHORD_MESSAGE__MSG_FIND_SUCCESSOR_REQUEST) {
     // finds and returns successor for requesting node
     fprintf(stderr, "find successor request received\n");
-    // TODO: INCORRECT PROCEDURE; IMPLEMENTED IN ORDER TO TEST COMMUNICATION
-    ChordMessage res_msg = CHORD_MESSAGE__INIT;
-    FindSuccessorResponse response = FIND_SUCCESSOR_RESPONSE__INIT;
-    if (n_successors == 0)
-      response.node = &own_node;
-    else
-      response.node = successors[0];
-    res_msg.msg_case = CHORD_MESSAGE__MSG_FIND_SUCCESSOR_RESPONSE;
-    res_msg.find_successor_response = &response;
-    // pack and send message
-    int msg_len = chord_message__get_packed_size(&res_msg);
-    chord_message__pack(&res_msg,buf);
-    fprintf(stderr, "packing of size %d\n", msg_len);
-    int s = send(fd, buf, msg_len, 0);
+
+    // TODO: follow algorithm to get node
+    Node successor;
+    send_successor_request(fd, &successor);
   } else if (msg->msg_case == CHORD_MESSAGE__MSG_GET_PREDECESSOR_REQUEST) {
     // get predecessor
     fprintf(stderr, "get predecessor request received\n");
@@ -122,74 +89,19 @@ void handle_message(int fd, ChordMessage *msg) {
     // check predecessor
     fprintf(stderr, "check predecessor request received\n");
   } else if (msg->msg_case == CHORD_MESSAGE__MSG_GET_SUCCESSOR_LIST_REQUEST) {
-    // this sends own successor list???
-    // TODO: this
-    /*fprintf(stderr, "successor list request received\n");
-    response = GET_SUCCESSOR_LIST_RESPONSE__INIT;
-    response.n_successors = n_successors;
-    Node **node = malloc(sizeof(Node*)n_successors);
-    for (int i = 0; i < n_successors; i++) {
-      node[i] = malloc(sizeof(struct Node));
-      (*node[i]) = NODE__INIT;
-      // TODO: is key parameter unused for a host node???
-      node[i]->address = successor[i].sin_addr.s_addr;
-      node[i]->port = successor[i].sin_port;
-    }
-    msg.msg_case = &response;    */
+    // get sucessor list
+
   } else if (msg->msg_case == CHORD_MESSAGE__MSG_R_FIND_SUCC_REQ) {
     // r find successor
     fprintf(stderr, "r find successor request received\n");
   }
 }
 
-// calls update functions if time interval has passed
-void update_chord(struct chord_arguments *args,
-		  struct timespec *curr_time, struct timespec *last_stab,
-		  struct timespec *last_ff, struct timespec *last_cp) {
-  fprintf(stderr, "updating chord\n");
-  if (time_diff(last_stab,curr_time) >
-      deci_to_sec(args->stabilize_period)) {
-    stabilize();
-    clock_gettime(CLOCK_REALTIME, last_stab);
-  }
-  if (time_diff(last_stab,curr_time) >
-      deci_to_sec(args->fix_fingers_period)) {
-    fix_fingers();
-    clock_gettime(CLOCK_REALTIME, last_ff);
-  }
-  if (time_diff(last_cp,curr_time) >
-      deci_to_sec(args->check_predecessor_period)) {
-    check_predecessor();
-    clock_gettime(CLOCK_REALTIME, last_cp);
-  }    
-}
-
-// hashes address based on ip address and port
-int hash_addr(struct sockaddr_in *addr) {
-  // helpful variables
-  uint8_t checksum[20];
-  struct sha1sum_ctx *ctx = sha1sum_create(NULL, 0);
-  assert(ctx != NULL);
-  // copy ip and port to hash
-  unsigned char	port_and_addr[6];
-  memcpy(port_and_addr, &addr->sin_addr, 4);
-  memcpy(port_and_addr+4, &addr->sin_port, 2);
-  // call hash and return truncated value
-  sha1sum_finish(ctx, port_and_addr, 6, checksum);
-  sha1sum_destroy(ctx);
-  return sha1sum_truncated_head(checksum);
-}
-
 int main(int argc, char *argv[]) {
   // arguments from parser  
   struct chord_arguments args = chord_parseopt(argc,argv);
-
-  // obtain node_key hash
-  node_key = hash_addr(&args.my_address);
-  node__init(&own_node);
-  own_node.address = args.my_address.sin_port;
-  own_node.port = args.my_address.sin_addr.s_addr;
-  own_node.key = node_key;
+  // initializes own_node
+  node_init(&own_node, &args.my_address);
   
   // book-keeping for surrounding nodes
   predecessor = NULL;
@@ -205,7 +117,7 @@ int main(int argc, char *argv[]) {
   
   if (args.join_address.sin_port == 0) {
     fprintf(stderr, "creating ring\n");
-    // TODO: check this is a correct way to distinguish no join address
+    // TODO: ensure correct way to distinguish no join address
     // no join address was given    
     create(&successors);
   } else {
@@ -234,7 +146,7 @@ int main(int argc, char *argv[]) {
     int p = poll(pfds, p_cons, 100);    
     clock_gettime(CLOCK_REALTIME, &curr_time);
 
-    // calls update functions at appropriate intervals
+    // handles calling update functions
     update_chord(&args, &curr_time, &last_stab, &last_ff, &last_cp);
 
     // TODO: handling incoming messages

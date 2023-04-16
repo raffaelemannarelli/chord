@@ -32,4 +32,3 @@ void check_predecessor();
 void create();
 void join(struct sockaddr_in *join_addr);
 void handle_message(int fd, ChordMessage *msg);
-int hash_addr(struct sockaddr_in *addr);

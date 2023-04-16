@@ -14,3 +14,7 @@ double deci_to_sec(int time);
 int socket_and_assert();
 void bind_and_assert(int sock, struct sockaddr* addr);
 void listen_and_assert(int sock);
+uint64_t hash_addr(struct sockaddr_in *addr);
+void update_chord(struct chord_arguments *args,
+                  struct timespec *curr_time, struct timespec *last_stab,
+                  struct timespec *last_ff, struct timespec *last_cp);

@@ -13,7 +13,7 @@ example_hash: hash.o example_hash.o
 chord_protobuf:
 	protoc-c --c_out=. protobuf/chord.proto
 
-chord: helper.o hash.o chord_arg_parser.o protobuf/chord.pb-c.c chord.c
+chord: message.o helper.o hash.o chord_arg_parser.o protobuf/chord.pb-c.c chord.c
 
 clean:
 	rm -rf protobuf/*.pb-c.* *~ chord *.o example_hash

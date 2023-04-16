@@ -6,6 +6,11 @@
 #include <assert.h>
 #include <unistd.h>
 #include <sys/socket.h>
+#include <stdint.h>
+
+#include "chord_arg_parser.h"
+#include "chord.h"
+#include "hash.h"
 
 #define BACKLOG 16
 
@@ -64,4 +69,41 @@ void bind_and_assert(int sock, struct sockaddr* addr) {
 void listen_and_assert(int sock) {
   int l = listen(sock, BACKLOG);
   assert(l >= 0);
+}
+
+// hashes address based on ip address and port
+uint64_t hash_addr(struct sockaddr_in *addr) {
+  // helpful variables
+  uint8_t checksum[20];
+  struct sha1sum_ctx *ctx = sha1sum_create(NULL, 0);
+  assert(ctx != NULL);
+  // copy ip and port to hash
+  unsigned char port_and_addr[6];
+  memcpy(port_and_addr, &(addr->sin_addr), 4);
+  memcpy(port_and_addr+4, &(addr->sin_port), 2);
+  // call hash and return truncated value
+  sha1sum_finish(ctx, port_and_addr, 6, checksum);
+  sha1sum_destroy(ctx);
+  return sha1sum_truncated_head(checksum);
+}
+
+// calls update functions if time interval has passed                                                                                                                                                                                                        
+void update_chord(struct chord_arguments *args,
+                  struct timespec *curr_time, struct timespec *last_stab,
+                  struct timespec *last_ff, struct timespec *last_cp) {
+  if (time_diff(last_stab,curr_time) >
+      deci_to_sec(args->stabilize_period)) {
+    stabilize();
+    clock_gettime(CLOCK_REALTIME, last_stab);
+  }
+  if (time_diff(last_stab,curr_time) >
+      deci_to_sec(args->fix_fingers_period)) {
+    fix_fingers();
+    clock_gettime(CLOCK_REALTIME, last_ff);
+  }
+  if (time_diff(last_cp,curr_time) >
+      deci_to_sec(args->check_predecessor_period)) {
+    check_predecessor();
+    clock_gettime(CLOCK_REALTIME, last_cp);
+  }
 }
