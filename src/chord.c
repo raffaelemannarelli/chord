@@ -30,7 +30,17 @@ void check_predecessor() {
 }
 
 // TODO
+// handles creating ring from first chord
+void create() {
+
+}
+
+// TODO
+// handles joining a chord to existing ring
 void join() {
+  int joinfd = init_socket(&(args->join_address));
+  assert(connect(joinfd,(struct sockaddr*)&(args->join_address),
+		 sizeof(struct sockaddr_in)) >= 0);
   
 }
 
@@ -77,18 +87,14 @@ int main(int argc, char *argv[]) {
 	      sizeof(struct sockaddr_in) >= 0));
   assert(listen(sockfd, BACKLOG) >= 0);
 
-  // socket for successor
-  int joinfd = init_socket(&(args->join_address));
-  assert(connect(joinfd,(struct sockaddr*)&(args->join_address),
-		 sizeof(struct sockaddr_in)) >= 0);
-
-  // TODO: implement joining procedure
-  join();
-
-  // TODO: will need a way to grow TCP connections
-  //       unclear how managing connections should be done
-  int p_size = START_PFDS;
-  int p_cons = 1;
+  if (args->join_address == NULL) {
+    create();
+  } else {
+    join();
+  }
+    
+  // pfds table and book-keeping to manage all connections
+  int p_size = START_PFDS, p_cons = 1;
   struct pollfd *pfds = malloc(sizeof(struct pollfd)*p_size);
   pfds[0].fd = listenfd, pfds[0].events = POLLIN;
 
@@ -114,8 +120,7 @@ int main(int argc, char *argv[]) {
 	if (pfds[i].fd == listenfd) {
 	  // socket that listen for incoming connections
 	  fprintf(stderr, "detected and adding new connection\n");
-	  int fd = accept(sock, (struct sockaddr*)
-			  &client_addr,&addr_size);
+	  int fd = accept(sock,(struct sockaddr*)&client_addr,&addr_size);
 	  assert(fd >= 0);	
 	  add_connection(&pfds,fd,&p_cons,&p_size);
 	} else {
@@ -130,9 +135,8 @@ int main(int argc, char *argv[]) {
 	    remove_connection(&pfds,pfds[i],&p_cons);
 	  } else {
 	    // normal message case
-	    // TODO: handle message appropriately
-	    // TODO: check format on these functions
-	    ChordMessage *msg = chordmesssage__unpack(NULL, msg_len, buf);
+	    // TODO: check format on unpacking functions
+	    ChordMessage *msg = chordmessage__unpack(NULL, msg_len, buf);
 	    assert(msg != NULL);
 	    handle_message(msg);	    
 	    chordmessage__free_unpacked(msg, NULL);
