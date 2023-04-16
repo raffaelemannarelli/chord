@@ -6,12 +6,12 @@
 #include <argp.h>
 
 struct chord_arguments {
-    uint8_t num_successors;
-    uint16_t stablize_period;
-    uint16_t fix_fingers_period;
-    uint16_t check_predecessor_period;
-    struct sockaddr_in my_address;
-	struct sockaddr_in join_address;
+  uint8_t num_successors;
+  uint16_t stabilize_period;
+  uint16_t fix_fingers_period;
+  uint16_t check_predecessor_period;
+  struct sockaddr_in my_address;
+  struct sockaddr_in join_address;
 };
 
 /**
