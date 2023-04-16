@@ -29,3 +29,4 @@ void check_predecessor();
 void create(sockaddr_in ***succ);
 void join(sockaddr_in ***succ);
 void handle_message(int fd, ChordMessage *msg);
+int hash_addr(struct sockaddr_in *addr);

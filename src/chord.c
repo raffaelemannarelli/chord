@@ -15,9 +15,12 @@
 #define BUFFER_SIZE 1024
 
 // global variables
+// finger_table size set to bit length of SHA-1
+Node *finger_table[160];
 Node *predecessor;
 Node **successors;
 int n_successors;
+uint64 node_key;
 
 // TODO: FIGURE OUT IF query_id in msg IS IMPORTANT
 
@@ -42,6 +45,8 @@ void check_predecessor() {
 
 // handles creating ring from first chord
 void create(sockaddr_in ***succ) {
+  finger_table[0] = malloc(sizeof(Node));
+  finger_table[0]->
   // pseudocode sets to self. Use NULL instead?
 }
 
@@ -138,10 +143,29 @@ void update_chord(struct chord_arguments *args,
   }    
 }
 
+// hashes address based on ip address and port
+int hash_addr(struct sockaddr_in *addr) {
+  // helpful variables
+  uint8_t checksum[20];
+  struct sha1sum_ctx *ctx = sha1sum_create(NULL, 0);
+  assert(ctx != NULL);
+  // copy ip and port to hash
+  unsigned char	port_and_addr[6];
+  memcpy(port_and_addr, addr->sin_addr, 4);
+  memcpy(port_and_addr+4, addr->sin_port, 2);
+  // call hash and return truncated value
+  sha1sum_finish(ctx, port_and_addr, 6, checksum);
+  sha1sum_destroy(ctx);
+  return sha1sum_truncated_head(checksum);
+}
+
 int main(int argc, char *argv[]) {
   // arguments from parser  
   struct chord_arguments args = chord_parseopt(argc,argv);
 
+  // obtain node_key hash
+  node_key = hash_addr(&args.my_address);
+  
   // book-keeping for surrounding nodes
   predecessor = NULL;
   successors = malloc(sizeof(Node *)*args.num_successors);
@@ -174,7 +198,7 @@ int main(int argc, char *argv[]) {
   clock_gettime(CLOCK_REALTIME, &last_stab);
   clock_gettime(CLOCK_REALTIME, &last_ff);
   clock_gettime(CLOCK_REALTIME, &last_cp);
-
+  
   char buf[BUFFER_SIZE];
   struct sockaddr_in client_addr;
   socklen_t addr_size = sizeof(client_addr);
