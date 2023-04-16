@@ -8,6 +8,7 @@
 #include "chord_arg_parser.h"
 #include "chord.h"
 #include "hash.h"
+#include "helper.h"
 
 #define BACKLOG 16
 #define START_PFDS 16
@@ -70,6 +71,27 @@ void handle_message(ChordMessage *msg) {
   }
 }
 
+// calls update functions if time interval has passed
+void update_chord(struct chord_arguments *args,
+		  struct timespec *curr_time, struct timespec *last_stab,
+		  struct timespec *last_ff, struct timespec *last_cp) {
+  if (time_diff(last_stab,curr_time) >
+      deci_to_sec(args->stabilize_period)) {
+    stabilize();
+    clock_gettime(CLOCK_REALTIME, last_stab);
+  }
+  if (time_diff(last_stab,curr_time) >
+      deci_to_sec(args->fix_fingers_period)) {
+    fix_fingers();
+    clock_gettime(CLOCK_REALTIME, last_ff);
+  }
+  if (time_diff(last_cp,curr_time) >
+      deci_to_sec(args->check_predecessor_period)) {
+    check_predecessor();
+    clock_gettime(CLOCK_REALTIME, last_cp);
+  }    
+}
+
 int main(int argc, char *argv[]) {
   // arguments from parser  
   struct chord_arguments args = chord_parseopt(argc,argv);
@@ -78,7 +100,7 @@ int main(int argc, char *argv[]) {
   int successors[args.num_successors];
 
   // create and bind listening socket for incoming connections
-  int listenfd = init_socket(&(args.my_address));
+  int listenfd = init_socket();
   assert(bind(listenfd,(struct sockaddr*)&(args.my_address),
 	      sizeof(struct sockaddr_in) >= 0));
   assert(listen(listenfd, BACKLOG) >= 0);
@@ -145,75 +167,4 @@ int main(int argc, char *argv[]) {
     }
   }      
   return 0;
-}
-
-// HELPER FUNCTIONS
-// TODO: SHOULD PROBABLY PUT INTO ANOTHER FILE
-
-// adds connection to pollfd array; handles p_cons, p_size, ect.
-void add_connection(struct pollfd **pfds, int fd,
-		    int *p_cons, int *p_size) {
-  if (*p_cons >= *p_size) {
-    *p_size = 2*(*p_size);
-    *pfds = realloc(*pfds, sizeof(struct pollfd)*(*p_size));
-  }
-
-  (*pfds)[*p_cons].fd = fd;
-  (*pfds)[*p_cons].events = POLLIN;
-  (*p_cons)++;
-}
-
-// removes connection from pollfd array; handles p_cons, p_size, ect.
-void remove_connection(struct pollfd **pfds, int fd, int* p_cons) {
-  close(fd);
-  int i = 0;
-  while ((*pfds)[i].fd != fd)
-    i++;
-  while (i-1 < *p_cons) {
-    (*pfds)[i] = (*pfds)[i+1];
-    i++;
-  }
-
-  *p_cons = (*p_cons)-1;
-}
-
-// calls update functions if time interval has passed
-void update_chord(struct chord_arguments *args,
-		  struct timespec *curr_time, struct timespec *last_stab,
-		  struct timespec *last_ff, struct timespec *last_cp) {
-  if (time_diff(last_stab,curr_time) >
-      deci_to_sec(args->stabilize_period)) {
-    stabilize();
-    clock_gettime(CLOCK_REALTIME, last_stab);
-  }
-  if (time_diff(last_stab,curr_time) >
-      deci_to_sec(args->fix_fingers_period)) {
-    fix_fingers();
-    clock_gettime(CLOCK_REALTIME, last_ff);
-  }
-  if (time_diff(last_cp,curr_time) >
-      deci_to_sec(args->check_predecessor_period)) {
-    check_predecessor();
-    clock_gettime(CLOCK_REALTIME, last_cp);
-  }    
-}
-
-// returns double of t2 - t1
-double time_diff(struct timespec *t1, struct timespec *t2) {
-  double result = (double) (t2->tv_sec - t1->tv_sec);
-  result += ((double)(t2->tv_nsec - t1->tv_nsec))
-    /1000000000;
-  return result;
-}
-
-// converts deciseconds to seconds
-double deci_to_sec(int time) {
-  return ((double) time)/10;
-}
-
-// creates socket from sockaddr_in pointer and asserts valid
-int init_socket(struct sockaddr_in *addr) {
-  int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-  assert(sockfd >= 0);
-  return sockfd;
 }

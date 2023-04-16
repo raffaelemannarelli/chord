@@ -47,14 +47,14 @@ error_t chord_parser(int key, char *arg, struct argp_state *state) {
 		break;
 	}
 
-    // --sp stablize period
+    // --sp stabilize period
     case 400:
 	{
         int ts_arg = atoi(arg);
         if (0 /*number is invalid*/) {
-			argp_error(state, "Invalid option for a stablize period");
+			argp_error(state, "Invalid option for a stabilize period");
         } else {
-            args->stablize_period = (uint16_t)ts_arg;
+            args->stabilize_period = (uint16_t)ts_arg;
         }
         break;
 	}
