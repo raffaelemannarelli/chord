@@ -50,8 +50,22 @@ void check_predecessor() {
 }
 
 // handles creating ring from first chord
+
+// Successor = finger[0]
+// Second Successor = Successor.finger[0]
+// N = Predecessor.finger[0]
+
+// We set the Predecessor to Current Node
+// Set the Second Successor to Current Node ?
 void create() {
-  // pseudocode sets to self. Use NULL instead?
+  predecessor = &own_node; 
+
+  finger_table[0] = emalloc(sizeof(struct Node))
+  memcpy(finger_table[0]->id, own_node.id, 20);
+  finger_table[0]->address = own_node.addr;
+  finger_table[0]->buf = emalloc(BUFFER_SIZE);
+  
+  // deal with successors
 }
 
 // TODO
@@ -119,7 +133,8 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "creating ring\n");
     // TODO: ensure correct way to distinguish no join address
     // no join address was given    
-    create(&successors);
+    create();
+    
   } else {
     fprintf(stderr, "joining ring\n");
     join(&(args.join_address));
