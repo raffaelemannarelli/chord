@@ -17,6 +17,7 @@
 
 #define START_PFDS 16
 #define BUFFER_SIZE 1024
+#define COMMAND_MAX 100 // IDK what this value should be rn
 
 // global variables
 // finger_table size set to bit length of SHA-1
@@ -27,6 +28,7 @@ Node *predecessor;
 Node **successors;
 int n_successors;
 uint64_t node_key;
+char command[COMMAND_MAX]; // buffer for commands
 
 // TODO: FIGURE OUT IF query_id in msg IS IMPORTANT
 
@@ -84,6 +86,9 @@ void join(struct sockaddr_in *join_addr) {
 
 // TODO; no idea if any of this is correct
 void handle_message(int fd, ChordMessage *msg) {
+
+
+
   if (msg->msg_case == CHORD_MESSAGE__MSG_NOTIFY_REQUEST) {
     // notify
   } else if (msg->msg_case == CHORD_MESSAGE__MSG_FIND_SUCCESSOR_REQUEST) {
@@ -106,6 +111,13 @@ void handle_message(int fd, ChordMessage *msg) {
     // r find successor
     fprintf(stderr, "r find successor request received\n");
   }
+}
+
+handleCommand(){
+  fgets(command, COMMAND_MAX, stdin);
+  // process command
+  // print stuff
+  return;
 }
 
 int main(int argc, char *argv[]) {
@@ -140,8 +152,14 @@ int main(int argc, char *argv[]) {
     
   // pfds table and book-keeping to manage all connections
   int p_size = START_PFDS, p_cons = 1;
-  struct pollfd *pfds = malloc(sizeof(struct pollfd)*p_size);
-  pfds[0].fd = listenfd, pfds[0].events = POLLIN;
+  struct pollfd *pfds = malloc(sizeof(struct pollfd)*(1 + p_size));
+
+  //command file descriptor
+  pfds[0].fd = listenfd
+  pfds[0].events = POLLIN;
+
+  // init the rest of pfds
+  for (int i = 0; i < p_size; i++) ufds[i+1].fd = -1;
 
   // timespecs for tracking regular intervals
   struct timespec curr_time, last_stab, last_ff, last_cp;
@@ -152,16 +170,21 @@ int main(int argc, char *argv[]) {
   char buf[BUFFER_SIZE];
   struct sockaddr_in client_addr;
   socklen_t addr_size = sizeof(client_addr);
+
   // main loop
   fprintf(stderr, "entering listening loop\n");
   while (1) {
-    int p = poll(pfds, p_cons, 100);    
+    int p = poll(pfds, 1+ p_cons, 100);    
     clock_gettime(CLOCK_REALTIME, &curr_time);
 
     // handles calling update functions
     update_chord(&args, &curr_time, &last_stab, &last_ff, &last_cp);
 
     // TODO: handling incoming messages
+
+    // Handling incoming command on std io, this fd dedicated to commands
+    if (pfds[0].revents & POLLIN) handleCommand();
+
     // handling packets
     for (int i = 0; i < p_cons && p != 0; i++) {
       if (pfds[i].revents & POLLIN) {
