@@ -152,14 +152,19 @@ int main(int argc, char *argv[]) {
     
   // pfds table and book-keeping to manage all connections
   int p_size = START_PFDS, p_cons = 1;
-  struct pollfd *pfds = malloc(sizeof(struct pollfd)*(1 + p_size));
+  struct pollfd *pfds = malloc(sizeof(struct pollfd)*(2 + p_size));
+ 
 
-  //command file descriptor
-  pfds[0].fd = listenfd
+  // command fle descriptor
+  pfds[0].fd = stdin;
   pfds[0].events = POLLIN;
 
+  // the listenfd is the 
+  pfds[1].fd = listenfd
+  pfds[1].events = POLLIN;
+
   // init the rest of pfds
-  for (int i = 0; i < p_size; i++) ufds[i+1].fd = -1;
+  for (int i = 0; i < p_size; i++) ufds[i+2].fd = -1;
 
   // timespecs for tracking regular intervals
   struct timespec curr_time, last_stab, last_ff, last_cp;
@@ -174,7 +179,7 @@ int main(int argc, char *argv[]) {
   // main loop
   fprintf(stderr, "entering listening loop\n");
   while (1) {
-    int p = poll(pfds, 1+ p_cons, 100);    
+    int p = poll(pfds, 2 + p_cons, 100);    
     clock_gettime(CLOCK_REALTIME, &curr_time);
 
     // handles calling update functions
@@ -188,33 +193,33 @@ int main(int argc, char *argv[]) {
     // handling packets
     for (int i = 0; i < p_cons && p != 0; i++) {
       if (pfds[i].revents & POLLIN) {
-	fprintf(stderr, "got message\n");
-	if (pfds[i].fd == listenfd) {
-	  // socket that listen for incoming connections
-	  fprintf(stderr, "detected and adding new connection\n");
-	  int fd = accept(listenfd,(struct sockaddr*)&client_addr,&addr_size);
-	  assert(fd >= 0);	
-	  add_connection(&pfds,fd,&p_cons,&p_size);
-	} else {
-	  // socket for an existing chord connection
-	  int msg_len = recv(pfds[i].fd, buf, BUFFER_SIZE, 0);	
+	      fprintf(stderr, "got message\n");
+        if (pfds[i].fd == listenfd) {
+          // socket that listen for incoming connections
+          fprintf(stderr, "detected and adding new connection\n");
+          int fd = accept(listenfd,(struct sockaddr*)&client_addr,&addr_size);
+          assert(fd >= 0);	
+          add_connection(&pfds,fd,&p_cons,&p_size);
+        } else {
+          // socket for an existing chord connection
+          int msg_len = recv(pfds[i].fd, buf, BUFFER_SIZE, 0);	
 
-	  if (msg_len < 0) {
-	    // error case
-	    fprintf(stderr, "error\n");
-	  } else if (msg_len == 0) {
-	    // connection closed case
-	    remove_connection(&pfds, pfds[i].fd, &p_cons);
-	  } else {
-	    // normal message case
-	    ChordMessage *msg = chord_message__unpack(NULL, msg_len, buf);
-	    assert(msg != NULL);
-	    handle_message(pfds[i].fd, msg);
-	    chord_message__free_unpacked(msg, NULL);
-	  }
-	}
-      }
-    }
+          if (msg_len < 0) {
+            // error case
+            fprintf(stderr, "error\n");
+          } else if (msg_len == 0) {
+            // connection closed case
+            remove_connection(&pfds, pfds[i].fd, &p_cons);
+          } else {
+            // normal message case
+            ChordMessage *msg = chord_message__unpack(NULL, msg_len, buf);
+            assert(msg != NULL);
+            handle_message(pfds[i].fd, msg);
+            chord_message__free_unpacked(msg, NULL);
+          }
+        } // end of if else pfds.fd == listen
+      } // end of pfds.revents pollin if statement
+    } // end of p_cons loop
   }      
   return 0;
 }
