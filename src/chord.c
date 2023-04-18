@@ -29,6 +29,7 @@ Node **successors;
 int n_successors;
 uint64_t node_key;
 char command[COMMAND_MAX]; // buffer for commands
+int next;
 
 // TODO: FIGURE OUT IF query_id in msg IS IMPORTANT
 
@@ -36,26 +37,56 @@ void printKey(uint64_t key) {
   printf("%" PRIu64, key);
 }
 
-// TODO
 void stabilize() {
 
+  // connect to successor
+
+  // int fd = socket_and_assert();
+  // int c = connect(fd, (struct sockaddr*)join_addr, sizeof(struct sockaddr));
+  // assert(c >= 0);
+
+  // request successors' predecessor
+  // get_predecessor(&response, fd)
+  // x = response->return_predecessor_response->node
+
+  // see if x should be n's successor
+  //if (x in (n, successor)){
+    // memcpy(successor[0], response->return_predecessor_response->node, sizeof(Node)) // successor = x;
+  //}
+
+  // notify n's successor of it's existence so it can make n its predecessor
+
+  // int fd = socket_and_assert();
+  // int c = connect(fd, (struct sockaddr*)join_addr, sizeof(struct sockaddr));
+  // assert(c >= 0);
+  // send_notifyRequest(n);
+
 }
 
-// TODO
+// RPC
+// void notify() {
+//   if (predecessor == NULL || )
+// }
+
 void fix_fingers() {
 
+  next = next + 1;
+  if(next > m) next = 1; // m is the last entry in finger table so we loop
+  
+  // finger_table[next] = find_successor(n + 2^(next - 1));
+  
 }
 
-// TODO
 void check_predecessor() {
-
+  if(predecessor has failed) // send heartbeat message asking if theyre alright, someting
+    predecessor = NULL;
 }
 
 // handles creating ring from first chord
 void create() {
 
-  // its own predeccessor 
-  predecessor = &own_node; 
+  // no pred
+  predecessor = NULL; 
 
   // fill out finger table, one entry, itself
   finger_table[0] = emalloc(sizeof(struct Node))
@@ -70,13 +101,19 @@ void create() {
 // TODO
 // handles joining a chord to existing ring
 void join(struct sockaddr_in *join_addr) {
+
+  // predecessor = nil
+  // ...
+  // successor = n'.find_sucessor(n)
+
   int fd = socket_and_assert();
   int c = connect(fd, (struct sockaddr*)join_addr, sizeof(struct sockaddr));
   assert(c >= 0);
-
+  // this is essentially: n'.find_sucessor(n)
   ChordMessage response;
   find_successor_request(&response, fd, &own_node);
 
+  // then successor = n'.find_sucessor(n)
   // put received node into sucessors list
   successors[0] = malloc(sizeof(Node));
   memcpy(successors[0],response->find_successor_response->node,sizeof(Node));
@@ -127,6 +164,7 @@ int main(int argc, char *argv[]) {
   node_init(&own_node, &args.my_address);
   
   // book-keeping for surrounding nodes
+  next = 0; // for finger table
   predecessor = NULL;
   successors = malloc(sizeof(Node *)*args.num_successors);
   for (int i = 0; i < args.num_successors; i++)
@@ -159,7 +197,7 @@ int main(int argc, char *argv[]) {
   pfds[0].fd = stdin;
   pfds[0].events = POLLIN;
 
-  // the listenfd is the 
+  // listens for new connections
   pfds[1].fd = listenfd
   pfds[1].events = POLLIN;
 
@@ -175,7 +213,8 @@ int main(int argc, char *argv[]) {
   char buf[BUFFER_SIZE];
   struct sockaddr_in client_addr;
   socklen_t addr_size = sizeof(client_addr);
-
+  // three threads
+  // put mutex around global vars
   // main loop
   fprintf(stderr, "entering listening loop\n");
   while (1) {
@@ -190,9 +229,12 @@ int main(int argc, char *argv[]) {
     // Handling incoming command on std io, this fd dedicated to commands
     if (pfds[0].revents & POLLIN) handleCommand();
 
+    // is there a new incoming connection
+    // if ()
+
     // handling packets
     for (int i = 0; i < p_cons && p != 0; i++) {
-      if (pfds[i].revents & POLLIN) {
+      if (pfds[i].revents & POLLIN) { // if we have a conncetion
 	      fprintf(stderr, "got message\n");
         if (pfds[i].fd == listenfd) {
           // socket that listen for incoming connections
@@ -216,6 +258,7 @@ int main(int argc, char *argv[]) {
             assert(msg != NULL);
             handle_message(pfds[i].fd, msg);
             chord_message__free_unpacked(msg, NULL);
+
           }
         } // end of if else pfds.fd == listen
       } // end of pfds.revents pollin if statement
