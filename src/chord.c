@@ -39,27 +39,41 @@ void printKey(uint64_t key) {
 
 void stabilize() {
 
-  // connect to successor
+  // fill out join address
+  struct sockaddr_in join_addr;
+  join_addr.sin_family = AF_INET;
+  join_addr.sin_addr.sin_addr = inet_addr(successors[0]->address);
+  join_addr.sin_port = htons(successors[0]->port);
 
-  // int fd = socket_and_assert();
-  // int c = connect(fd, (struct sockaddr*)join_addr, sizeof(struct sockaddr));
-  // assert(c >= 0);
+  // socket
+  int fd = socket_and_assert();
+
+  // connect to successor
+  int c = connect(fd, (struct sockaddr*)join_addr, sizeof(struct sockaddr));
+  assert(c >= 0);
 
   // request successors' predecessor
-  // get_predecessor(&response, fd)
-  // x = response->return_predecessor_response->node
+  ChordMessage response;
+  // get_predecessor(&response, fd) // need to implement
+  // close connection after recieving response
+
+  int x = response->get_predecessor_resonse->node->key; // ??? predecessor key
 
   // see if x should be n's successor
-  //if (x in (n, successor)){
-    // memcpy(successor[0], response->return_predecessor_response->node, sizeof(Node)) // successor = x;
-  //}
+  if (own_node->key < x && x < sucessor[0]->key){
+      memcpy(successor[0], response->return_predecessor_response->node, sizeof(Node)) // successor = x;
+    }
 
   // notify n's successor of it's existence so it can make n its predecessor
+  bzero(join_addr);
+  join_addr.sin_family = AF_INET;
+  join_addr.sin_addr.sin_addr = inet_addr(successors[0]->address);
+  join_addr.sin_port = htons(successors[0]->port);
 
-  // int fd = socket_and_assert();
-  // int c = connect(fd, (struct sockaddr*)join_addr, sizeof(struct sockaddr));
-  // assert(c >= 0);
-  // send_notifyRequest(n);
+  fd = socket_and_assert();
+  c = connect(fd, (struct sockaddr*)join_addr, sizeof(struct sockaddr));
+  assert(c >= 0);
+  // send_notifyRequest(n); // need to implement
 
 }
 
@@ -73,7 +87,7 @@ void fix_fingers() {
   next = next + 1;
   if(next > m) next = 1; // m is the last entry in finger table so we loop
   
-  // finger_table[next] = find_successor(n + 2^(next - 1));
+  // finger_table[next] = find_successor(n + 2^(next - 1));  // send find successor queury
   
 }
 
@@ -112,6 +126,8 @@ void join(struct sockaddr_in *join_addr) {
   // this is essentially: n'.find_sucessor(n)
   ChordMessage response;
   find_successor_request(&response, fd, &own_node);
+
+
 
   // then successor = n'.find_sucessor(n)
   // put received node into sucessors list
@@ -231,6 +247,8 @@ int main(int argc, char *argv[]) {
 
     // is there a new incoming connection
     // if ()
+    
+    // thread() ---> 
 
     // handling packets
     for (int i = 0; i < p_cons && p != 0; i++) {
