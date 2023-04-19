@@ -135,7 +135,7 @@ int in_bounds_closed(int x, int a, int b) {
     else
       return 0;
   } else {
-    if (x > a && x <= b)
+    if (x > a || x <= b)
       return 1;
     else
       return 0;
