@@ -113,3 +113,32 @@ void addr_from_node(struct sockaddr_in *addr, Node *node) {
   addr->sin_addr.sin_addr = node->address;
   addr->sin_port = htons(node->port);
 }
+
+int in_bounds(int x, int a, int b) {
+  if (a <= b) {
+    if (x > a && x < b)
+      return 1;
+    else
+      return 0;
+  } else {
+    if (x > a || x < b)
+      return 1;
+    else
+      return 0;
+  }
+}
+
+int in_bounds_closed(int x, int a, int b) {
+  if (a <= b) {
+    if (x > a && x <= b)
+      return 1;
+    else
+      return 0;
+  } else {
+    if (x > a && x <= b)
+      return 1;
+    else
+      return 0;
+  }
+}
+

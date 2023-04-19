@@ -18,3 +18,6 @@ uint64_t hash_addr(struct sockaddr_in *addr);
 void update_chord(struct chord_arguments *args,
                   struct timespec *curr_time, struct timespec *last_stab,
                   struct timespec *last_ff, struct timespec *last_cp);
+void addr_from_node(struct sockaddr_in *addr, Node *node);
+int in_bounds(int x, int a, int b);
+int in_bounds_closed(int x, int a, int b);
