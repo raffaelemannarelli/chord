@@ -15,7 +15,6 @@
 #include "message.h"
 #include "helper.h"
 
-
 #define START_PFDS 16
 #define BUFFER_SIZE 1024
 #define COMMAND_MAX 100 // IDK what this value should be rn
@@ -24,8 +23,9 @@
 // global variables
 // finger_table size set to bit length of SHA-1
 // NEED TO INITIALIZE ALL NODES IN ORDER TO PACK
+//const uint8_t KEY_LEN = 8;
 Node own_node;
-Node *finger_table[FINGER_SIZE];
+Node finger_table[FINGER_SIZE];
 Node *predecessor;
 Node **successors;
 int n_successors;
@@ -44,47 +44,48 @@ void stabilize() {
 
   // request successors' predecessor
   ChordMessage response;
-  get_predecessor_request(&response, successors[0]); // need to implement
+  get_predecessor_request(&response, successors[0]);
+  // x = successor.predecessor
+  uint64_t x = response.get_predecessor_response->node->key;
 
-  uint64_t x = response.get_predecessor_response->node->key; // ??? predecessor key
-
-  // needs to updated for circle wrap around edge case
   // see if x should be n's successor 
-  if (own_node.key < x && x < successors[0]->key){
-      memcpy(successors[0], response.get_predecessor_response->node, sizeof(Node)); // successor = x;
+  if (in_bounds(x, own_node.key, successors[0]->key)) {
+    memcpy(successors[0],response.get_predecessor_response->node, sizeof(Node)); // successor = x;
     }
 
-  // notify n's successor of it's existence so it can make n its predecessor
-  // send_notifyRequest(&own_node, &successors[0]); // need to implement
-
+  // notify n's successor of its existence to make n its predecessor
+  ChordMessage placeholder;
+  notify_request(&placeholder, successors[0], &own_node); 
 }
 
-// RPC
-void notify(Node *n_prime) {
-  // fix this in range shit its not correct but gets idea accross
-  if (predecessor == NULL || (predecessor->key < n_prime->key || n_prime->key < own_node.key)){
-    predecessor = n_prime;
+// RPC; replaces pred if potential pred is after pred
+void notify(Node *pot_pred) {
+  if (predecessor == NULL) {
+    predecessor = malloc(sizeof(Node));
+    memcpy(predecessor, pot_pred, sizeof(Node));
+  } else if (in_bounds(pot_pred->key, predecessor->key,
+		       own_node.key)) {
+    memcpy(predecessor, pot_pred, sizeof(Node));
   }
-
 }
-Node* find_successor(uint64_t id){
-  // again, needs to be fixed but works as concept
-  if(own_node.key < id && id < successors[0]->key){
-    return successors[0];
-  }else{
+
+void find_successor(Node *to_return, uint64_t id) {
+  if (in_bounds_closed(id, own_node.key, successors[0]->key)) {
+    memcpy(to_return, successors[0], sizeof(Node));
+  } else {
     // rough sketch
     Node *prime = closest_preceding_node(id);
     ChordMessage response;
     find_successor_request(&response, prime, &own_node);
-    return response.find_successor_response->node;
+    memcpy(to_return, response.find_successor_response->node,
+	   sizeof(Node));
   }
-  
 }
-Node* closest_preceding_node(uint64_t id){
 
-  for(int i = FINGER_SIZE; i >= 0; i--){
-    if (own_node.key < finger_table[i]->key && finger_table[i]->key < id){ // fix this
-      return finger_table[i];
+Node* closest_preceding_node(uint64_t id){
+  for(int i = FINGER_SIZE-1; i >= 0; i--) {
+    if (in_bounds(finger_table[i].key, own_node.key, id)) {
+      return &finger_table[i];
     }
   }
   return &own_node;
@@ -92,7 +93,6 @@ Node* closest_preceding_node(uint64_t id){
 
 // not finished
 void fix_fingers() {
-
   next = next + 1;
   if(next > FINGER_SIZE) next = 1; // m is the last entry in finger table so we loop
 
@@ -101,23 +101,15 @@ void fix_fingers() {
 }
 
 // not finished
-// void check_predecessor() {
+void check_predecessor() {
 //   if(predecessor has failed) // send heartbeat message asking if theyre alright, someting
 //     predecessor = NULL;
-// }
+}
 
 // handles creating ring from first chord
 void create() {
-
   // no pred
   predecessor = NULL; 
-
-  // fill out finger table, one entry, itself
-  finger_table[0] = malloc(sizeof(Node));
-  memcpy(&finger_table[0]->key, &own_node.key, 20);
-  finger_table[0]->address = own_node.address;
-  // finger_table[0]->buf = emalloc(BUFFER_SIZE);
-  
   // deal with successors, itself is the successor
   successors[0] = &own_node;
 }
@@ -125,27 +117,25 @@ void create() {
 // TODO
 // handles joining a chord to existing ring
 void join(struct sockaddr_in *join_addr) {
-
   // predecessor = nil
-  // ...
+  predecessor = NULL;
+
   // successor = n'.find_sucessor(n)
-
-  int fd = socket_and_assert();
-  int c = connect(fd, (struct sockaddr*)join_addr, sizeof(struct sockaddr));
-  assert(c >= 0);
-  // this is essentially: n'.find_sucessor(n)
-
   Node node;
   addr_from_node(join_addr, &node);
   ChordMessage response;
   find_successor_request(&response, &node, &own_node);
 
-  // then successor = n'.find_sucessor(n)
+  // TODO: what if this value is null?
   // put received node into sucessors list
   successors[0] = malloc(sizeof(Node));
   memcpy(successors[0],response.find_successor_response->node,sizeof(Node));
-  
-  // close(sock);
+}
+
+// initialize entire finger table to point to current node
+void init_finger_table() {
+  for (int i = 0; i < FINGER_SIZE; i++)
+    finger_table[i] = own_node;
 }
 
 // TODO; no idea if any of this is correct
@@ -153,16 +143,20 @@ void handle_message(int fd, ChordMessage *msg) {
 
   if (msg->msg_case == CHORD_MESSAGE__MSG_NOTIFY_REQUEST) {
     // notify
+    notify(msg->notify_request->node);
+    notify_response(fd);
   } else if (msg->msg_case == CHORD_MESSAGE__MSG_FIND_SUCCESSOR_REQUEST) {
     // finds and returns successor for requesting node
     fprintf(stderr, "find successor request received\n");
 
     // TODO: follow algorithm to get node
     Node successor;
-    send_successor_request(fd, &successor);
+    find_successor(&successor, msg->find_successor_request->key);
+    find_successor_response(fd, &successor);
   } else if (msg->msg_case == CHORD_MESSAGE__MSG_GET_PREDECESSOR_REQUEST) {
     // get predecessor
-    fprintf(stderr, "get predecessor request received\n");
+    // TODO: HOW DOES THIS BEHAVE IF PREDECESSOR == NULL???
+    get_predecessor_response(fd, predecessor);
   } else if (msg->msg_case == CHORD_MESSAGE__MSG_CHECK_PREDECESSOR_REQUEST) {
     // check predecessor
     fprintf(stderr, "check predecessor request received\n");
@@ -175,19 +169,31 @@ void handle_message(int fd, ChordMessage *msg) {
   }
 }
 
-// implement later
-// handleCommand(){
-//   fgets(command, COMMAND_MAX, stdin);
-//   // process command
-//   // print stuff
-//   return;
-// }
+// handles commands from stdin
+void handle_command() {
+  char line[256];
+  char string[256];
+
+  printf("> ");
+  fgets(line, 256, stdin);
+  line[strlen(line)-1] = '\0';
+
+  if (strcmp("PrintState", line) == 0) {
+    printf("< Self...\n");
+  } else if (strncmp("Lookup ", line, 7) == 0) {
+    strcpy(string, line+7);
+    printf("< %s\n", string);
+  } else {
+    printf("< ERROR: BAD FORMAT\n");
+  }
+}
 
 int main(int argc, char *argv[]) {
   // arguments from parser  
   struct chord_arguments args = chord_parseopt(argc,argv);
   // initializes own_node
   node_init(&own_node, &args.my_address);
+  init_finger_table();
   
   // book-keeping for surrounding nodes
   next = 0; // for finger table
@@ -220,7 +226,7 @@ int main(int argc, char *argv[]) {
  
 
   // command fle descriptor
-  pfds[0].fd = stdin;
+  pfds[0].fd = STDIN_FILENO;
   pfds[0].events = POLLIN;
 
   // listens for new connections
@@ -236,7 +242,7 @@ int main(int argc, char *argv[]) {
   clock_gettime(CLOCK_REALTIME, &last_ff);
   clock_gettime(CLOCK_REALTIME, &last_cp);
   
-  char buf[BUFFER_SIZE];
+  uint8_t buf[BUFFER_SIZE];
   struct sockaddr_in client_addr;
   socklen_t addr_size = sizeof(client_addr);
   // three threads
@@ -263,10 +269,12 @@ int main(int argc, char *argv[]) {
     // handling packets
     for (int i = 0; i < p_cons && p != 0; i++) {
       if (pfds[i].revents & POLLIN) { // if we have a conncetion
-	      fprintf(stderr, "got message\n");
-        if (pfds[i].fd == listenfd) {
-          // socket that listen for incoming connections
-          fprintf(stderr, "detected and adding new connection\n");
+	fprintf(stderr, "got message\n");
+	if (pfds[i].fd == STDIN_FILENO) {
+	  handle_command();
+	} else if (pfds[i].fd == listenfd) {
+	  // socket that listen for incoming connections
+	  fprintf(stderr, "detected and adding new connection\n");
           int fd = accept(listenfd,(struct sockaddr*)&client_addr,&addr_size);
           assert(fd >= 0);	
           add_connection(&pfds,fd,&p_cons,&p_size);

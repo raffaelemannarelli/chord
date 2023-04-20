@@ -9,8 +9,10 @@
 #include <stdint.h>
 
 #include "chord_arg_parser.h"
+#include "chord.pb-c.h"
 #include "chord.h"
 #include "hash.h"
+#include "helper.h"
 
 #define BACKLOG 16
 
@@ -87,7 +89,7 @@ uint64_t hash_addr(struct sockaddr_in *addr) {
   return sha1sum_truncated_head(checksum);
 }
 
-// calls update functions if time interval has passed                                                                                                                                                                                                        
+// calls update functions if time interval has passed
 void update_chord(struct chord_arguments *args,
                   struct timespec *curr_time, struct timespec *last_stab,
                   struct timespec *last_ff, struct timespec *last_cp) {
@@ -111,7 +113,7 @@ void update_chord(struct chord_arguments *args,
 void addr_from_node(struct sockaddr_in *addr, Node *node) {
   addr->sin_family = AF_INET;
   addr->sin_addr.s_addr = node->address;
-  addr->sin_port = htons(node->port);
+  addr->sin_port = node->port;
 }
 
 int in_bounds(int x, int a, int b) {
@@ -141,4 +143,3 @@ int in_bounds_closed(int x, int a, int b) {
       return 0;
   }
 }
-

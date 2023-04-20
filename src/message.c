@@ -8,8 +8,6 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
-#include "chord_arg_parser.h"
-#include "chord.h"
 #include "hash.h"
 #include "helper.h"
 #include "message.h"
@@ -45,6 +43,12 @@ void find_successor_request(ChordMessage *to_return,
   send_and_return(to_return, &msg, send_to);
 }
 
+/*void r_find_succ_request(ChordMessage *to_return, Node *send_to,
+			 int key, Node *requester) {
+  ChordMessage msg = CHORD_MESSAGE__INIT;
+  
+  }*/
+
 // sends get_predecessor_request
 void get_predecessor_request(ChordMessage *to_return,
 			     Node *send_to) {
@@ -56,32 +60,32 @@ void get_predecessor_request(ChordMessage *to_return,
   send_and_return(to_return, &msg, send_to);
 }
 
-void notify_response(Node *to_send) {
+void notify_response(int fd) {
   ChordMessage msg = CHORD_MESSAGE__INIT;
   NotifyResponse response = NOTIFY_RESPONSE__INIT;
   msg.msg_case = CHORD_MESSAGE__MSG_NOTIFY_RESPONSE;
   msg.notify_response = &response;
-  pack_and_send(to_send, &msg);
+  pack_and_send(fd, &msg);
 }
 
 // sends find_sucessor_response
-void find_successor_response(Node *to_send, Node *node) {
+void find_successor_response(int fd, Node *node) {
   ChordMessage msg = CHORD_MESSAGE__INIT;
   FindSuccessorResponse response = FIND_SUCCESSOR_RESPONSE__INIT;
   response.node = node;
   msg.msg_case = CHORD_MESSAGE__MSG_FIND_SUCCESSOR_RESPONSE;
   msg.find_successor_response = &response;
-  pack_and_send(to_send, &msg);
+  pack_and_send(fd, &msg);
 }
 
 // sends get_predecessor_response
-void get_predecessor_response(Node *to_send, Node *node) {
+void get_predecessor_response(int fd, Node *node) {
   ChordMessage msg = CHORD_MESSAGE__INIT;
   GetPredecessorResponse response = GET_PREDECESSOR_RESPONSE__INIT;
   response.node = node;
   msg.msg_case = CHORD_MESSAGE__MSG_GET_PREDECESSOR_RESPONSE;
   msg.get_predecessor_response = &response;
-  pack_and_send(to_send, &msg);
+  pack_and_send(fd, &msg);
 }
 
 /*******************************************/
@@ -89,11 +93,10 @@ void get_predecessor_response(Node *to_send, Node *node) {
 /*******************************************/
 
 // pack and send message
-void pack_and_send(Node *to_send, ChordMessage *msg) {
+void pack_and_send(int fd, ChordMessage *msg) {
   uint8_t buf[BUFFER_SIZE];
   int msg_len = chord_message__get_packed_size(msg);
   chord_message__pack(msg, buf);
-  int fd = socket_and_connect(to_send);
   int s = send(fd, buf, msg_len, 0);
   assert(s >= 0);
   close(fd);

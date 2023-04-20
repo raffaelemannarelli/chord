@@ -10,6 +10,8 @@
 
 #include "hash.h"
 #include "helper.h"
+#include "chord_arg_parser.h"
+#include "chord.h"
 
 // REQUESTS
 void notify_request(ChordMessage *to_return,
@@ -19,12 +21,12 @@ void find_successor_request(ChordMessage *to_return,
 void get_predecessor_request(ChordMessage *to_return,
                           Node *send_to);
 // RESPONSES
-void notify_response(Node *to_send);
-void find_successor_response(Node *to_send, Node *node);
-void get_predecessor_response(Node *to_send, Node *node);
+void notify_response(int fd);
+void find_successor_response(int fd, Node *node);
+void get_predecessor_response(int fd, Node *node);
 
 // HELPER FUNCTIONS
-void pack_and_send(Node *to_send, ChordMessage *msg);
+void pack_and_send(int fd, ChordMessage *msg);
 void send_and_return(ChordMessage *to_return,
 		     ChordMessage *msg, Node *to_send);
 int socket_and_connect(Node *node);
