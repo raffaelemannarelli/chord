@@ -13,6 +13,7 @@
 #include "chord.h"
 #include "hash.h"
 #include "helper.h"
+#include "message.h"
 
 #define BACKLOG 16
 
@@ -114,10 +115,13 @@ void addr_from_node(struct sockaddr_in *addr, Node *node) {
   addr->sin_family = AF_INET;
   addr->sin_addr.s_addr = node->address;
   addr->sin_port = node->port;
+  fprintf(stderr, "port: %hu\n", (node->port));
 }
 
 int in_bounds(int x, int a, int b) {
-  if (a <= b) {
+  if (a == b) {
+    return 1;
+  } else if (a < b) {
     if (x > a && x < b)
       return 1;
     else
@@ -131,7 +135,9 @@ int in_bounds(int x, int a, int b) {
 }
 
 int in_bounds_closed(int x, int a, int b) {
-  if (a <= b) {
+  if (a == b) {
+    return 1;
+  } if (a < b) {
     if (x > a && x <= b)
       return 1;
     else

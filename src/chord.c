@@ -41,7 +41,10 @@ void printKey(uint64_t key) {
 
 // may have to change connects---- it blocks :(
 void stabilize() {
-
+  // prevent making calls if successor currently set to self
+  if (successors[0] == &own_node)
+    return;  
+  
   // request successors' predecessor
   ChordMessage response;
   get_predecessor_request(&response, successors[0]);
@@ -71,9 +74,11 @@ void notify(Node *pot_pred) {
 
 void find_successor(Node *to_return, uint64_t id) {
   if (in_bounds_closed(id, own_node.key, successors[0]->key)) {
+    fprintf(stderr, "successor is own node\n");
     memcpy(to_return, successors[0], sizeof(Node));
   } else {
     // rough sketch
+    fprintf(stderr, "successor is not own node\n");
     Node *prime = closest_preceding_node(id);
     ChordMessage response;
     find_successor_request(&response, prime, &own_node);
@@ -122,10 +127,12 @@ void join(struct sockaddr_in *join_addr) {
 
   // successor = n'.find_sucessor(n)
   Node node;
-  addr_from_node(join_addr, &node);
+  node_init(&node, join_addr);
   ChordMessage response;
+  fprintf(stderr, "making find_successor_request\n");
   find_successor_request(&response, &node, &own_node);
-
+  fprintf(stderr, "done 'find_successor_request\n");
+  
   // TODO: what if this value is null?
   // put received node into sucessors list
   successors[0] = malloc(sizeof(Node));
@@ -221,7 +228,7 @@ int main(int argc, char *argv[]) {
   }
     
   // pfds table and book-keeping to manage all connections
-  int p_size = START_PFDS, p_cons = 1;
+  int p_size = START_PFDS, p_cons = 2;
   struct pollfd *pfds = malloc(sizeof(struct pollfd)*(2 + p_size));
  
 
@@ -248,13 +255,15 @@ int main(int argc, char *argv[]) {
   // three threads
   // put mutex around global vars
   // main loop
-  fprintf(stderr, "entering listening loop\n");
+  fprintf(stderr, "entering listening loop with successor port %hu\n",
+	  successors[0]->port);
   while (1) {
     int p = poll(pfds, 2 + p_cons, 100);    
     clock_gettime(CLOCK_REALTIME, &curr_time);
-
+    fprintf(stderr, ".");
+    
     // handles calling update functions
-    update_chord(&args, &curr_time, &last_stab, &last_ff, &last_cp);
+    //update_chord(&args, &curr_time, &last_stab, &last_ff, &last_cp);
 
     // TODO: handling incoming messages
 
@@ -287,6 +296,7 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "error\n");
           } else if (msg_len == 0) {
             // connection closed case
+	    fprintf(stderr, "connection closed\n");
             remove_connection(&pfds, pfds[i].fd, &p_cons);
           } else {
             // normal message case

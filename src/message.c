@@ -39,7 +39,7 @@ void find_successor_request(ChordMessage *to_return,
   request.key = own_node->key;
   msg.msg_case = CHORD_MESSAGE__MSG_FIND_SUCCESSOR_REQUEST;
   msg.find_successor_request = &request;
-  
+
   send_and_return(to_return, &msg, send_to);
 }
 
@@ -94,6 +94,7 @@ void get_predecessor_response(int fd, Node *node) {
 
 // pack and send message
 void pack_and_send(int fd, ChordMessage *msg) {
+  fprintf(stderr, "packing and sending\n");
   uint8_t buf[BUFFER_SIZE];
   int msg_len = chord_message__get_packed_size(msg);
   chord_message__pack(msg, buf);
@@ -111,7 +112,9 @@ void send_and_return(ChordMessage *to_return,
 
   int fd = socket_and_connect(to_send);
   send(fd, buf, send_len, 0);
+  fprintf(stderr, "sent");
   int recv_len = recv(fd, buf, BUFFER_SIZE, 0);
+  fprintf(stderr, ", recved\n");
   close(fd);
 
   ChordMessage *response = chord_message__unpack(NULL, recv_len,
