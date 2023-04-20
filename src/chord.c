@@ -8,6 +8,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 
+
 #include "chord_arg_parser.h"
 #include "chord.h"
 #include "hash.h"
@@ -41,17 +42,16 @@ void printKey(uint64_t key) {
 // may have to change connects---- it blocks :(
 void stabilize() {
 
-
   // request successors' predecessor
   ChordMessage response;
-  // get_predecessor(&response, &successors[0]) // need to implement
+  get_predecessor_request(&response, successors[0]); // need to implement
 
-  uint64_t x = response->get_predecessor_resonse->node->key; // ??? predecessor key
+  uint64_t x = response.get_predecessor_response->node->key; // ??? predecessor key
 
   // needs to updated for circle wrap around edge case
   // see if x should be n's successor 
-  if (own_node->key < x && x < sucessors[0]->key){
-      memcpy(successors[0], response->return_predecessor_response->node, sizeof(Node)) // successor = x;
+  if (own_node.key < x && x < successors[0]->key){
+      memcpy(successors[0], response.get_predecessor_response->node, sizeof(Node)); // successor = x;
     }
 
   // notify n's successor of it's existence so it can make n its predecessor
@@ -61,32 +61,50 @@ void stabilize() {
 
 // RPC
 void notify(Node *n_prime) {
-
   // fix this in range shit its not correct but gets idea accross
-  if (predecessor == NULL || (predecessor->key < n_prime->key || n_prime->key < n->key))
+  if (predecessor == NULL || (predecessor->key < n_prime->key || n_prime->key < own_node.key)){
+    predecessor = n_prime;
+  }
+
 }
-void find_successor(uint64_t id){
-  if(own_node->key < id && id < successors[0]->key)
+Node* find_successor(uint64_t id){
+  // again, needs to be fixed but works as concept
+  if(own_node.key < id && id < successors[0]->key){
+    return successors[0];
+  }else{
+    // rough sketch
+    Node *prime = closest_preceding_node(id);
+    ChordMessage response;
+    find_successor_request(&response, prime, &own_node);
+    return response.find_successor_response->node;
+  }
   
 }
-// void closest_preceding_node(){
+Node* closest_preceding_node(uint64_t id){
 
-// }
+  for(int i = FINGER_SIZE; i >= 0; i--){
+    if (own_node.key < finger_table[i]->key && finger_table[i]->key < id){ // fix this
+      return finger_table[i];
+    }
+  }
+  return &own_node;
+}
 
-
+// not finished
 void fix_fingers() {
 
   next = next + 1;
   if(next > FINGER_SIZE) next = 1; // m is the last entry in finger table so we loop
-  uint64_t = 
+
   // finger_table[next] = find_successor(n + 2^(next - 1));  // send find successor queury
   
 }
 
-void check_predecessor() {
-  if(predecessor has failed) // send heartbeat message asking if theyre alright, someting
-    predecessor = NULL;
-}
+// not finished
+// void check_predecessor() {
+//   if(predecessor has failed) // send heartbeat message asking if theyre alright, someting
+//     predecessor = NULL;
+// }
 
 // handles creating ring from first chord
 void create() {
@@ -95,10 +113,10 @@ void create() {
   predecessor = NULL; 
 
   // fill out finger table, one entry, itself
-  finger_table[0] = emalloc(sizeof(struct Node))
-  memcpy(finger_table[0]->id, own_node.id, 20);
-  finger_table[0]->address = own_node.addr;
-  finger_table[0]->buf = emalloc(BUFFER_SIZE);
+  finger_table[0] = malloc(sizeof(Node));
+  memcpy(&finger_table[0]->key, &own_node.key, 20);
+  finger_table[0]->address = own_node.address;
+  // finger_table[0]->buf = emalloc(BUFFER_SIZE);
   
   // deal with successors, itself is the successor
   successors[0] = &own_node;
@@ -116,21 +134,22 @@ void join(struct sockaddr_in *join_addr) {
   int c = connect(fd, (struct sockaddr*)join_addr, sizeof(struct sockaddr));
   assert(c >= 0);
   // this is essentially: n'.find_sucessor(n)
+
+  Node node;
+  addr_from_node(join_addr, &node);
   ChordMessage response;
-  find_successor_request(&response, fd, &own_node);
+  find_successor_request(&response, &node, &own_node);
 
   // then successor = n'.find_sucessor(n)
   // put received node into sucessors list
   successors[0] = malloc(sizeof(Node));
-  memcpy(successors[0],response->find_successor_response->node,sizeof(Node));
+  memcpy(successors[0],response.find_successor_response->node,sizeof(Node));
   
-  close(sock);
+  // close(sock);
 }
 
 // TODO; no idea if any of this is correct
 void handle_message(int fd, ChordMessage *msg) {
-
-
 
   if (msg->msg_case == CHORD_MESSAGE__MSG_NOTIFY_REQUEST) {
     // notify
@@ -156,12 +175,13 @@ void handle_message(int fd, ChordMessage *msg) {
   }
 }
 
-handleCommand(){
-  fgets(command, COMMAND_MAX, stdin);
-  // process command
-  // print stuff
-  return;
-}
+// implement later
+// handleCommand(){
+//   fgets(command, COMMAND_MAX, stdin);
+//   // process command
+//   // print stuff
+//   return;
+// }
 
 int main(int argc, char *argv[]) {
   // arguments from parser  
@@ -204,11 +224,11 @@ int main(int argc, char *argv[]) {
   pfds[0].events = POLLIN;
 
   // listens for new connections
-  pfds[1].fd = listenfd
+  pfds[1].fd = listenfd;
   pfds[1].events = POLLIN;
 
   // init the rest of pfds
-  for (int i = 0; i < p_size; i++) ufds[i+2].fd = -1;
+  for (int i = 0; i < p_size; i++) pfds[i+2].fd = -1;
 
   // timespecs for tracking regular intervals
   struct timespec curr_time, last_stab, last_ff, last_cp;
@@ -233,7 +253,7 @@ int main(int argc, char *argv[]) {
     // TODO: handling incoming messages
 
     // Handling incoming command on std io, this fd dedicated to commands
-    if (pfds[0].revents & POLLIN) handleCommand();
+    // if (pfds[0].revents & POLLIN) handleCommand();
 
     // is there a new incoming connection
     // if ()
