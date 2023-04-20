@@ -110,7 +110,7 @@ void update_chord(struct chord_arguments *args,
 
 void addr_from_node(struct sockaddr_in *addr, Node *node) {
   addr->sin_family = AF_INET;
-  addr->sin_addr.sin_addr = node->address;
+  addr->sin_addr.s_addr = node->address;
   addr->sin_port = htons(node->port);
 }
 

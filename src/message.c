@@ -12,6 +12,10 @@
 #include "chord.h"
 #include "hash.h"
 #include "helper.h"
+#include "message.h"
+
+// hopefully this is large enough
+#define BUFFER_SIZE 256
 
 // WARNING: MAY NOT BE PROPERLY COPYING RESPONSE TO INCLUDE
 //          POINTER FIELD: CHECK THIS!!!!
@@ -23,7 +27,7 @@ void notify_request(ChordMessage *to_return,
   ChordMessage msg = CHORD_MESSAGE__INIT;
   NotifyRequest request = NOTIFY_REQUEST__INIT;
   request.node = own_node;
-  msg.msg_case = CHORD_MESSAGE___MSG_NOTIFY_REQUEST;
+  msg.msg_case = CHORD_MESSAGE__MSG_NOTIFY_REQUEST;
   msg.notify_request = &request;
 
   send_and_return(to_return, &msg, send_to);
@@ -43,7 +47,7 @@ void find_successor_request(ChordMessage *to_return,
 
 // sends get_predecessor_request
 void get_predecessor_request(ChordMessage *to_return,
-			     Node *send_to, Node *own_node) {
+			     Node *send_to) {
   ChordMessage msg = CHORD_MESSAGE__INIT;
   GetPredecessorRequest request = GET_PREDECESSOR_REQUEST__INIT;
   msg.msg_case = CHORD_MESSAGE__MSG_GET_PREDECESSOR_REQUEST;
@@ -73,7 +77,7 @@ void find_successor_response(Node *to_send, Node *node) {
 // sends get_predecessor_response
 void get_predecessor_response(Node *to_send, Node *node) {
   ChordMessage msg = CHORD_MESSAGE__INIT;
-  FindSuccessorResponse response = GET_PREDECESSOR_RESPONSE__INIT;
+  GetPredecessorResponse response = GET_PREDECESSOR_RESPONSE__INIT;
   response.node = node;
   msg.msg_case = CHORD_MESSAGE__MSG_GET_PREDECESSOR_RESPONSE;
   msg.get_predecessor_response = &response;
@@ -86,24 +90,25 @@ void get_predecessor_response(Node *to_send, Node *node) {
 
 // pack and send message
 void pack_and_send(Node *to_send, ChordMessage *msg) {
-  char buf[BUFFER_SIZE];
-  int msg_len = chord_message__get_packed_size(&msg);
-  chord_message__pack(&msg,buf);
+  uint8_t buf[BUFFER_SIZE];
+  int msg_len = chord_message__get_packed_size(msg);
+  chord_message__pack(msg, buf);
   int fd = socket_and_connect(to_send);
   int s = send(fd, buf, msg_len, 0);
+  assert(s >= 0);
   close(fd);
 }
 
 // sends message, gets response, and copies to to_return
 void send_and_return(ChordMessage *to_return,
 			      ChordMessage *msg, Node *to_send) {
-  char buf[BUFFER_SIZE];
+  uint8_t buf[BUFFER_SIZE];
   int send_len = chord_message__get_packed_size(msg);
-  chord_message__pack(&msg,buf);
+  chord_message__pack(msg, buf);
 
-  int fd = socket_and_connect(send_to);
+  int fd = socket_and_connect(to_send);
   send(fd, buf, send_len, 0);
-  int recv_len = recv(sock, buf, BUFFER_SIZE, 0);
+  int recv_len = recv(fd, buf, BUFFER_SIZE, 0);
   close(fd);
 
   ChordMessage *response = chord_message__unpack(NULL, recv_len,
