@@ -13,40 +13,23 @@
 #include "hash.h"
 #include "helper.h"
 
-// TODO: FIGURE OUT IF query_id in msg IS IMPORTANT
-void node_init(Node *node, struct sockaddr_in *addr) {
-  node__init(node);
-  node->key = hash_addr(addr);
-  node->address = addr->sin_addr.s_addr;
-  node->port = addr->sin_port;
-}
-
 // WARNING: MAY NOT BE PROPERLY COPYING RESPONSE TO INCLUDE
 //          POINTER FIELD: CHECK THIS!!!!
 
-void get_predecessor_request(ChordMessage *to_return,
-			     Node *send_to, Node *own_node) {
+
+// sends notify_request
+void notify_request(ChordMessage *to_return,
+		    Node *send_to, Node *own_node) {
   ChordMessage msg = CHORD_MESSAGE__INIT;
-  GetPredecessorRequest request = GET_PREDECESSOR_REQUEST__INIT;
-  msg.msg_case = CHORD_MESSAGE__MSG_GET_PREDECESSOR_REQUEST;
-  msg.get_predecessor_request = &request;
-  
-  int send_len = chord_message__get_packet_size(&msg);
-  char buf[BUFFER];
-  chord_message__pack(&msg, buf);
+  NotifyRequest request = NOTIFY_REQUEST__INIT;
+  request.node = own_node;
+  msg.msg_case = CHORD_MESSAGE___MSG_NOTIFY_REQUEST;
+  msg.notify_request = &request;
 
-  int fd = socket_and_connect(send_to);
-  send(fd, buf, send_len, 0);
-  int recv_len = recv(fd, buf, BUFFER_SIZE, 0);
-  close(fd);
-
-  ChordMessage *response = chord_message__unpack(NULL, recv_len, buf);
-  // WARNING IS SIZEOF CHORDMESSAGE CONSISTENT???
-  memcpy(to_return, response, sizeof(ChordMessage));
-  chord_message__free_unpacked(response, NULL);
+  send_and_return(to_return, &msg, send_to);
 }
 
-// returns response to a find_successor_request call
+// sends find_successor_request
 void find_successor_request(ChordMessage *to_return,
 			    Node *send_to, Node *own_node) {
   ChordMessage msg = CHORD_MESSAGE__INIT;
@@ -54,24 +37,42 @@ void find_successor_request(ChordMessage *to_return,
   request.key = own_node->key;
   msg.msg_case = CHORD_MESSAGE__MSG_FIND_SUCCESSOR_REQUEST;
   msg.find_successor_request = &request;
-
-  int send_len = chord_message__get_packed_size(&msg);
-  char buf[BUFFER_SIZE];
-  chord_message__pack(&msg,buf);
-
-  int fd = socket_and_connect(send_to);
-  send(fd, buf, send_len, 0);
-  int recv_len = recv(sock, buf, BUFFER_SIZE, 0);
-  close(fd);
   
-  ChordMessage *response = chord_message__unpack(NULL, recv_len, buf);
-    // WARNING IS SIZEOF CHORDMESSAGE CONSISTENT???
-  memcpy(to_return,response,sizeof(ChordMessage));
-  chord_message__free_unpacked(response, NULL);
+  send_and_return(to_return, &msg, send_to);
 }
 
+// sends get_predecessor_request
+void get_predecessor_request(ChordMessage *to_return,
+			     Node *send_to, Node *own_node) {
+  ChordMessage msg = CHORD_MESSAGE__INIT;
+  GetPredecessorRequest request = GET_PREDECESSOR_REQUEST__INIT;
+  msg.msg_case = CHORD_MESSAGE__MSG_GET_PREDECESSOR_REQUEST;
+  msg.get_predecessor_request = &request;
+
+  send_and_return(to_return, &msg, send_to);
+}
+
+void notify_response(Node *to_send) {
+  ChordMessage msg = CHORD_MESSAGE__INIT;
+  NotifyResponse response = NOTIFY_RESPONSE__INIT;
+  msg.msg_case = CHORD_MESSAGE__MSG_NOTIFY_RESPONSE;
+  msg.notify_response = &response;
+  pack_and_send(to_send, &msg);
+}
+
+// sends find_sucessor_response
+void find_successor_response(Node *to_send, Node *node) {
+  ChordMessage msg = CHORD_MESSAGE__INIT;
+  FindSuccessorResponse response = FIND_SUCCESSOR_RESPONSE__INIT;
+  response.node = node;
+  msg.msg_case = CHORD_MESSAGE__MSG_FIND_SUCCESSOR_RESPONSE;
+  msg.find_successor_response = &response;
+  pack_and_send(to_send, &msg);
+}
+
+// sends get_predecessor_response
 void get_predecessor_response(Node *to_send, Node *node) {
-  ChordMessage msg = CHORD_MESSAGE_INIT;
+  ChordMessage msg = CHORD_MESSAGE__INIT;
   FindSuccessorResponse response = GET_PREDECESSOR_RESPONSE__INIT;
   response.node = node;
   msg.msg_case = CHORD_MESSAGE__MSG_GET_PREDECESSOR_RESPONSE;
@@ -79,15 +80,9 @@ void get_predecessor_response(Node *to_send, Node *node) {
   pack_and_send(to_send, &msg);
 }
 
-// sends sucessor request
-void find_successor_response(Node *to_send, Node *node) {
-  ChordMessage msg = CHORD_MESSAGE_INIT;
-  FindSuccessorResponse response = FIND_SUCCESSOR_RESPONSE__INIT;
-  response.node = node;
-  msg.msg_case = CHORD_MESSAGE__MSG_FIND_SUCCESSOR_RESPONSE;
-  msg.find_successor_response = &response;
-  pack_and_send(to_send, &msg);
-}
+/*******************************************/
+/*            HELPER FUNCTIONS             */
+/*******************************************/
 
 // pack and send message
 void pack_and_send(Node *to_send, ChordMessage *msg) {
@@ -97,6 +92,24 @@ void pack_and_send(Node *to_send, ChordMessage *msg) {
   int fd = socket_and_connect(to_send);
   int s = send(fd, buf, msg_len, 0);
   close(fd);
+}
+
+// sends message, gets response, and copies to to_return
+void send_and_return(ChordMessage *to_return,
+			      ChordMessage *msg, Node *to_send) {
+  char buf[BUFFER_SIZE];
+  int send_len = chord_message__get_packed_size(msg);
+  chord_message__pack(&msg,buf);
+
+  int fd = socket_and_connect(send_to);
+  send(fd, buf, send_len, 0);
+  int recv_len = recv(sock, buf, BUFFER_SIZE, 0);
+  close(fd);
+
+  ChordMessage *response = chord_message__unpack(NULL, recv_len,
+						 buf);
+  memcpy(to_return,response,sizeof(ChordMessage));
+  chord_message__free_unpacked(response, NULL);
 }
 
 // makes socket and connection from given node
@@ -109,4 +122,12 @@ int socket_and_connect(Node *node) {
 		  sizeof(struct sockaddr));
   assert(c >= 0);
   return fd;
+}
+
+// TODO: FIGURE OUT IF query_id in msg IS IMPORTANT
+void node_init(Node *node, struct sockaddr_in *addr) {
+  node__init(node);
+  node->key = hash_addr(addr);
+  node->address = addr->sin_addr.s_addr;
+  node->port = addr->sin_port;
 }
