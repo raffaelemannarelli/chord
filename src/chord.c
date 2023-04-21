@@ -97,16 +97,17 @@ void find_successor(Node *to_return, uint64_t id) {
   } else {
     fprintf(stderr, "NEED TO CHECK FINGER TABLE\n");
     // rough sketch
-    Node *prime = closest_preceding_node(id);
+    Node prime;
+    closest_preceding_node(&prime, id);
     // table has not get updated for proper node, so skip
-    if (prime == &own_node) {
+    if (memcmp(&prime, &own_node, sizeof(Node)) == 0) {
       fprintf(stderr, "IT IS ME ATM");
       memcpy(to_return, &own_node, sizeof(Node));
       return;
     } else {
       fprintf(stderr, "IT IS ANOTHER NODE\n");
       ChordMessage response;
-      find_successor_request(&response, prime, id);
+      find_successor_request(&response, &prime, id);
       fprintf(stderr, "GOT RESPONSE\n");
       assert(response.find_successor_response != NULL);
       memcpy(to_return, response.find_successor_response->node,
@@ -116,13 +117,11 @@ void find_successor(Node *to_return, uint64_t id) {
   }
 }
 
-Node* closest_preceding_node(uint64_t id){
-  for(int i = FINGER_SIZE-1; i >= 0; i--) {
-    if (in_bounds(finger_table[i].key, own_node.key, id)) {
-      return &finger_table[i];
-    }
-  }
-  return &own_node;
+void closest_preceding_node(Node *to_return, uint64_t id){
+  for(int i = FINGER_SIZE-1; i >= 0; i--)
+    if (in_bounds(finger_table[i].key, own_node.key, id))
+      memcpy(to_return, &finger_table[i], sizeof(Node));
+  memcpy(to_return, &own_node, sizeof(Node));
 }
 
 // not finished

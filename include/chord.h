@@ -36,7 +36,7 @@ void printKey(uint64_t key);
 void stabilize();
 void notify(Node *pot_pred);
 void find_successor(Node *to_ruturn, uint64_t id);
-Node* closest_preceding_node(uint64_t id);
+void closest_preceding_node(Node *to_return, uint64_t id);
 void fix_fingers();
 void check_predecessor();
 void create();
