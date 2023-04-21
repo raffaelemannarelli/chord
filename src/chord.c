@@ -7,7 +7,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
-
+#include <pthread.h>
 
 #include "chord_arg_parser.h"
 #include "chord.h"
@@ -287,12 +287,6 @@ int main(int argc, char *argv[]) {
   pfds[1].fd = listenfd;
   pfds[1].events = POLLIN;
 
-  // timespecs for tracking regular intervals
-  struct timespec curr_time, last_stab, last_ff, last_cp;
-  clock_gettime(CLOCK_REALTIME, &last_stab);
-  clock_gettime(CLOCK_REALTIME, &last_ff);
-  clock_gettime(CLOCK_REALTIME, &last_cp);
-  
   uint8_t buf[BUFFER_SIZE];
   struct sockaddr_in client_addr;
   socklen_t addr_size = sizeof(client_addr);
@@ -301,15 +295,15 @@ int main(int argc, char *argv[]) {
   // main loop
   //fprintf(stderr, "entering listening loop with successor port %hu\n",
   //successors[0]->port);
+
+  // separate thread handles calling update functions
+  pthread_t thread_id;
+  pthread_create(&thread_id, NULL, &update_chord, &args);
+  
   while (1) {
     int p = poll(pfds, p_cons, 200);    
-    clock_gettime(CLOCK_REALTIME, &curr_time);
     
-    // handles calling update functions
-    update_chord(&args, &curr_time, &last_stab, &last_ff, &last_cp);
-
     // TODO: handling incoming messages
-
     // Handling incoming command on std io, this fd dedicated to commands
     // if (pfds[0].revents & POLLIN) handleCommand();
 
