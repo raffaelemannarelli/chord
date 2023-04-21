@@ -41,9 +41,19 @@ void printKey(uint64_t key) {
 
 // may have to change connects---- it blocks :(
 void stabilize() {
-  // prevent making calls if successor currently set to self
-  if (successors[0] == &own_node)
-    return;  
+  fprintf(stderr, "stabilizing\n");
+
+  // case when no successor known
+  if (successors[0] == &own_node) {
+    if (predecessor != &own_node) {
+      successors[0] = malloc(sizeof(Node));
+      memcpy(successors[0], predecessor, sizeof(Node));
+      ChordMessage placeholder;
+      notify_request(&placeholder, successors[0], &own_node); 
+    }
+    return;
+  }
+  
   
   // request successors' predecessor
   ChordMessage response;
@@ -63,16 +73,19 @@ void stabilize() {
 
 // RPC; replaces pred if potential pred is after pred
 void notify(Node *pot_pred) {
-  if (predecessor == NULL) {
+  if (predecessor == &own_node) {
+    fprintf(stderr, "was set to own node\n");
     predecessor = malloc(sizeof(Node));
     memcpy(predecessor, pot_pred, sizeof(Node));
+    fprintf(stderr, "pred set to %d\n", predecessor->port);
   } else if (in_bounds(pot_pred->key, predecessor->key,
 		       own_node.key)) {
     memcpy(predecessor, pot_pred, sizeof(Node));
+    fprintf(stderr, "pred set to %d\n", predecessor->port);
   }
 }
 
-void find_successor(Node *to_return, uint64_t id) {
+void find_successor(Node *to_return, uint64_t id) {  
   if (in_bounds_closed(id, own_node.key, successors[0]->key)) {
     fprintf(stderr, "successor is own node\n");
     memcpy(to_return, successors[0], sizeof(Node));
@@ -113,8 +126,8 @@ void check_predecessor() {
 
 // handles creating ring from first chord
 void create() {
-  // no pred
-  predecessor = NULL; 
+  // predecessor = nil (cannot use NULL as error sending messages)
+  predecessor = &own_node; 
   // deal with successors, itself is the successor
   successors[0] = &own_node;
 }
@@ -122,16 +135,14 @@ void create() {
 // TODO
 // handles joining a chord to existing ring
 void join(struct sockaddr_in *join_addr) {
-  // predecessor = nil
-  predecessor = NULL;
+  // predecessor = nil (cannot use NULL as error sending messages)
+  predecessor = &own_node;
 
   // successor = n'.find_sucessor(n)
   Node node;
   node_init(&node, join_addr);
   ChordMessage response;
-  fprintf(stderr, "making find_successor_request\n");
   find_successor_request(&response, &node, &own_node);
-  fprintf(stderr, "done 'find_successor_request\n");
   
   // TODO: what if this value is null?
   // put received node into sucessors list
@@ -147,16 +158,14 @@ void init_finger_table() {
 
 // TODO; no idea if any of this is correct
 void handle_message(int fd, ChordMessage *msg) {
-
   if (msg->msg_case == CHORD_MESSAGE__MSG_NOTIFY_REQUEST) {
     // notify
+    fprintf(stderr, "notify received\n");
     notify(msg->notify_request->node);
     notify_response(fd);
   } else if (msg->msg_case == CHORD_MESSAGE__MSG_FIND_SUCCESSOR_REQUEST) {
     // finds and returns successor for requesting node
     fprintf(stderr, "find successor request received\n");
-
-    // TODO: follow algorithm to get node
     Node successor;
     find_successor(&successor, msg->find_successor_request->key);
     find_successor_response(fd, &successor);
@@ -174,6 +183,7 @@ void handle_message(int fd, ChordMessage *msg) {
     // r find successor
     fprintf(stderr, "r find successor request received\n");
   }
+  close(fd);
 }
 
 // handles commands from stdin
@@ -204,7 +214,7 @@ int main(int argc, char *argv[]) {
   
   // book-keeping for surrounding nodes
   next = 0; // for finger table
-  predecessor = NULL;
+  predecessor = &own_node;
   successors = malloc(sizeof(Node *)*args.num_successors);
   for (int i = 0; i < args.num_successors; i++)
     successors[i] = NULL;
@@ -216,20 +226,15 @@ int main(int argc, char *argv[]) {
   listen_and_assert(listenfd);
   
   if (args.join_address.sin_port == 0) {
-    fprintf(stderr, "creating ring\n");
-    // TODO: ensure correct way to distinguish no join address
-    // no join address was given    
     create();
-
   } else {
-    fprintf(stderr, "joining ring\n");
     join(&(args.join_address));
     // TODO: need to get all sucessor nodes after node obtained during join
   }
     
   // pfds table and book-keeping to manage all connections
   int p_size = START_PFDS, p_cons = 2;
-  struct pollfd *pfds = malloc(sizeof(struct pollfd)*(2 + p_size));
+  struct pollfd *pfds = malloc(sizeof(struct pollfd)*(p_size));
  
 
   // command fle descriptor
@@ -239,9 +244,6 @@ int main(int argc, char *argv[]) {
   // listens for new connections
   pfds[1].fd = listenfd;
   pfds[1].events = POLLIN;
-
-  // init the rest of pfds
-  for (int i = 0; i < p_size; i++) pfds[i+2].fd = -1;
 
   // timespecs for tracking regular intervals
   struct timespec curr_time, last_stab, last_ff, last_cp;
@@ -258,12 +260,11 @@ int main(int argc, char *argv[]) {
   fprintf(stderr, "entering listening loop with successor port %hu\n",
 	  successors[0]->port);
   while (1) {
-    int p = poll(pfds, 2 + p_cons, 100);    
+    int p = poll(pfds, p_cons, 200);    
     clock_gettime(CLOCK_REALTIME, &curr_time);
-    fprintf(stderr, ".");
     
     // handles calling update functions
-    //update_chord(&args, &curr_time, &last_stab, &last_ff, &last_cp);
+    update_chord(&args, &curr_time, &last_stab, &last_ff, &last_cp);
 
     // TODO: handling incoming messages
 
@@ -304,7 +305,8 @@ int main(int argc, char *argv[]) {
             assert(msg != NULL);
             handle_message(pfds[i].fd, msg);
             chord_message__free_unpacked(msg, NULL);
-
+	    remove_connection(&pfds, pfds[i].fd, &p_cons);
+	    i--;
           }
         } // end of if else pfds.fd == listen
       } // end of pfds.revents pollin if statement

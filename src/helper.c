@@ -115,7 +115,6 @@ void addr_from_node(struct sockaddr_in *addr, Node *node) {
   addr->sin_family = AF_INET;
   addr->sin_addr.s_addr = node->address;
   addr->sin_port = node->port;
-  fprintf(stderr, "port: %hu\n", (node->port));
 }
 
 int in_bounds(int x, int a, int b) {
