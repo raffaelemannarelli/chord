@@ -74,6 +74,18 @@ void listen_and_assert(int sock) {
   assert(l >= 0);
 }
 
+uint64_t hash_string(char *str) {
+  // helpful variables
+  uint8_t checksum[20];
+  struct sha1sum_ctx *ctx = sha1sum_create(NULL, 0);
+  assert(ctx != NULL);
+  // call hash and return truncated value
+  sha1sum_finish(ctx, str, strlen(str), checksum);
+  sha1sum_destroy(ctx);
+  return sha1sum_truncated_head(checksum);
+}
+
+
 // hashes address based on ip address and port
 uint64_t hash_addr(struct sockaddr_in *addr) {
   // helpful variables

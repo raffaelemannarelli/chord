@@ -206,9 +206,20 @@ void handle_command() {
 
   } else if (strncmp("Lookup ", line, 7) == 0) {
     strcpy(string, line+7);
-    printf("< %s\n", string);
+    printf("\n< %s ", string);
+    look_up(hash_string(string));
   } else {
     printf("< ERROR: BAD FORMAT\n");
+  }
+}
+
+// TODO: implement message look-up
+void look_up(uint64_t key) {
+  if (successors[0] == &own_node) {
+    // one node case
+    printf("%lu\n", own_node.key);
+  } else {
+    // utilize key to lookup
   }
 }
 
