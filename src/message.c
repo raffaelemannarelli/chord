@@ -15,11 +15,7 @@
 // hopefully this is large enough
 #define BUFFER_SIZE 256
 
-// WARNING: MAY NOT BE PROPERLY COPYING RESPONSE TO INCLUDE
-//          POINTER FIELD: CHECK THIS!!!!
-
-
-// sends notify_request
+// REQUEST FUNCTIONS
 void notify_request(ChordMessage *to_return,
 		    Node *send_to, Node *own_node) {
   ChordMessage msg = CHORD_MESSAGE__INIT;
@@ -31,7 +27,6 @@ void notify_request(ChordMessage *to_return,
   send_and_return(to_return, &msg, send_to);
 }
 
-// sends find_successor_request
 void find_successor_request(ChordMessage *to_return,
 			    Node *send_to, Node *own_node) {
   ChordMessage msg = CHORD_MESSAGE__INIT;
@@ -43,13 +38,18 @@ void find_successor_request(ChordMessage *to_return,
   send_and_return(to_return, &msg, send_to);
 }
 
-/*void r_find_succ_request(ChordMessage *to_return, Node *send_to,
+void r_find_succ_request(ChordMessage *to_return, Node *send_to,
 			 int key, Node *requester) {
   ChordMessage msg = CHORD_MESSAGE__INIT;
-  
-  }*/
+  RFindSuccReq request = R_FIND_SUCC_REQ__INIT;
+  request.key = key;
+  request.requester = requester;
+  msg.msg_case = CHORD_MESSAGE__MSG_R_FIND_SUCC_REQ;
+  msg.r_find_succ_req = &request;
 
-// sends get_predecessor_request
+  send_and_return(to_return, &msg, send_to);  
+}
+
 void get_predecessor_request(ChordMessage *to_return,
 			     Node *send_to) {
   ChordMessage msg = CHORD_MESSAGE__INIT;
@@ -60,6 +60,27 @@ void get_predecessor_request(ChordMessage *to_return,
   send_and_return(to_return, &msg, send_to);
 }
 
+void check_predecessor_request(ChordMessage *to_return,
+			     Node *send_to) {
+  ChordMessage msg = CHORD_MESSAGE__INIT;
+  CheckPredecessorRequest request = CHECK_PREDECESSOR_REQUEST__INIT;
+  msg.msg_case = CHORD_MESSAGE__MSG_CHECK_PREDECESSOR_REQUEST;
+  msg.check_predecessor_request = &request;
+
+  send_and_return(to_return, &msg, send_to);
+}
+
+void get_successor_list_request(ChordMessage *to_return,
+				Node *send_to) {
+  ChordMessage msg = CHORD_MESSAGE__INIT;
+  GetSuccessorListRequest request = GET_SUCCESSOR_LIST_REQUEST__INIT;
+  msg.msg_case = CHORD_MESSAGE__MSG_GET_SUCCESSOR_LIST_REQUEST;
+  msg.get_successor_list_request = &request;
+
+  send_and_return(to_return, &msg, send_to);
+}
+
+// RESPONSE FUNCTIONS
 void notify_response(int fd) {
   ChordMessage msg = CHORD_MESSAGE__INIT;
   NotifyResponse response = NOTIFY_RESPONSE__INIT;
@@ -68,7 +89,6 @@ void notify_response(int fd) {
   pack_and_send(fd, &msg);
 }
 
-// sends find_sucessor_response
 void find_successor_response(int fd, Node *node) {
   ChordMessage msg = CHORD_MESSAGE__INIT;
   FindSuccessorResponse response = FIND_SUCCESSOR_RESPONSE__INIT;
@@ -78,7 +98,16 @@ void find_successor_response(int fd, Node *node) {
   pack_and_send(fd, &msg);
 }
 
-// sends get_predecessor_response
+void rFindSuccResp(int fd, int key, Node *node) {
+  ChordMessage msg = CHORD_MESSAGE__INIT;
+  RFindSuccResp response = R_FIND_SUCC_RESP__INIT;
+  response.key = key;
+  response.node = node;
+  msg.msg_case = CHORD_MESSAGE__MSG_R_FIND_SUCC_RESP;
+  msg.r_find_succ_resp = &response;
+  pack_and_send(fd, &msg);  
+}
+
 void get_predecessor_response(int fd, Node *node) {
   ChordMessage msg = CHORD_MESSAGE__INIT;
   GetPredecessorResponse response = GET_PREDECESSOR_RESPONSE__INIT;
@@ -87,6 +116,27 @@ void get_predecessor_response(int fd, Node *node) {
   msg.get_predecessor_response = &response;
   pack_and_send(fd, &msg);
 }
+
+void check_predecessor_response(int fd) {
+  ChordMessage msg = CHORD_MESSAGE__INIT;
+  CheckPredecessorResponse response = CHECK_PREDECESSOR_RESPONSE__INIT;
+  msg.msg_case = CHORD_MESSAGE__MSG_CHECK_PREDECESSOR_RESPONSE;
+  msg.check_predecessor_response = &response;
+  pack_and_send(fd, &msg);
+}
+
+// TODO: ensure this is the correct method of handling
+void get_successor_list_response(int fd, Node **successors, int num) {
+  ChordMessage msg = CHORD_MESSAGE__INIT;
+  GetSuccessorListResponse response = GET_SUCCESSOR_LIST_RESPONSE__INIT;
+  for (int i = 0; i < num; i++)
+    response.successors[i] = successors[i];
+  msg.msg_case = CHORD_MESSAGE__MSG_GET_SUCCESSOR_LIST_RESPONSE;
+  msg.get_successor_list_response = &response;
+  pack_and_send(fd, &msg);
+}
+
+
 
 /*******************************************/
 /*            HELPER FUNCTIONS             */

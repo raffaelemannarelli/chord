@@ -18,12 +18,25 @@ void notify_request(ChordMessage *to_return,
                     Node *send_to, Node *own_node);
 void find_successor_request(ChordMessage *to_return,
                          Node *send_to, Node *own_node);
+void r_find_succ_request(ChordMessage *to_return,
+			 Node *send_to, int key,
+			 Node *requester);
 void get_predecessor_request(ChordMessage *to_return,
                           Node *send_to);
+void check_predecessor_request(ChordMessage *to_return,
+			       Node *send_to);
+void get_successor_list_request(ChordMessage *to_return,
+				Node *send_to);
+
 // RESPONSES
 void notify_response(int fd);
 void find_successor_response(int fd, Node *node);
+void rFindSuccResp(int fd, int key, Node *node);
 void get_predecessor_response(int fd, Node *node);
+void check_predecessor_response(int fd);
+void get_successor_list_response(int fd,
+				 Node **successors,
+				 int num);
 
 // HELPER FUNCTIONS
 void pack_and_send(int fd, ChordMessage *msg);
