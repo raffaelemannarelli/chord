@@ -204,6 +204,7 @@ void handle_message(int fd) {
     Node successor;
     find_successor(&successor, msg->find_successor_request->key);
     fprintf(stderr, "found successor: \n");
+    //print_node(&successor);
     find_successor_response(fd, &successor);
     fprintf(stderr, "sent successor response\n");
   } else if (msg->msg_case == CHORD_MESSAGE__MSG_GET_PREDECESSOR_REQUEST) {
@@ -300,16 +301,11 @@ int main(int argc, char *argv[]) {
   }
     
   // pfds table and book-keeping to manage all connections
-  struct pollfd *pfds = malloc(sizeof(struct pollfd)*2);
- 
-
+  struct pollfd pfds[2];
   // command fle descriptor
-  pfds[0].fd = STDIN_FILENO;
-  pfds[0].events = POLLIN;
-
+  pfds[0].fd = STDIN_FILENO, pfds[0].events = POLLIN;
   // listens for new connections
-  pfds[1].fd = listenfd;
-  pfds[1].events = POLLIN;
+  pfds[1].fd = listenfd, pfds[1].events = POLLIN;
 
   struct sockaddr_in client_addr;
   socklen_t addr_size = sizeof(client_addr);
@@ -327,7 +323,7 @@ int main(int argc, char *argv[]) {
   while (1) {
     int p = poll(pfds, 2, 100);    
 
-    //fprintf(stderr, ".");
+    fprintf(stderr, ".");
     for (int i = 0; i < 2 && p != 0; i++) {
       if (pfds[i].revents & POLLIN) { // if we have a conncetion
 	if (pfds[i].fd == STDIN_FILENO) {
@@ -338,9 +334,7 @@ int main(int argc, char *argv[]) {
           assert(fd >= 0);
 
 	  pthread_t thread_id;
-	  int p = pthread_create(&thread_id, NULL, &handle_message, (void*) fd);
-	  if (p == pthread_self())
-	    pthread_exit(NULL);
+	  pthread_create(&thread_id, NULL, &handle_message, (void*) fd);
 	}
       } // end of pfds.revents pollin if statement
     } // end of p_cons loop
