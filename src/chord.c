@@ -135,6 +135,7 @@ void create() {
   predecessor = &own_node; 
   // deal with successors, itself is the successor
   successors[0] = &own_node;
+  n_successors = 1;
 }
 
 // handles joining a chord to existing ring
@@ -150,6 +151,7 @@ void join(struct sockaddr_in *join_addr) {
   
   // put received node into sucessors list
   successors[0] = malloc(sizeof(Node));
+  n_successors = 1;
   memcpy(successors[0],response.find_successor_response->node,sizeof(Node));
 }
 
@@ -199,9 +201,9 @@ void handle_command() {
   if (strcmp("PrintState", line) == 0) {
     printf("< Self "), print_node(&own_node);
     for (int i = 0; i < n_successors; i++)
-      printf("< Successor [%d] ", i), print_node(successors[i]);
+      printf("< Successor [%d] ", i+1), print_node(successors[i]);
     for (int i = 0; i < FINGER_SIZE; i++)
-      printf("< Finger [%d] ", i), print_node(&finger_table[i]);
+      printf("< Finger [%d] ", i+1), print_node(&finger_table[i]);
 
   } else if (strncmp("Lookup ", line, 7) == 0) {
     strcpy(string, line+7);
