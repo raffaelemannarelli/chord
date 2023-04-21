@@ -28,10 +28,10 @@ void notify_request(ChordMessage *to_return,
 }
 
 void find_successor_request(ChordMessage *to_return,
-			    Node *send_to, Node *own_node) {
+			    Node *send_to, uint64_t key) {
   ChordMessage msg = CHORD_MESSAGE__INIT;
   FindSuccessorRequest request = FIND_SUCCESSOR_REQUEST__INIT;
-  request.key = own_node->key;
+  request.key = key;
   msg.msg_case = CHORD_MESSAGE__MSG_FIND_SUCCESSOR_REQUEST;
   msg.find_successor_request = &request;
 
@@ -149,7 +149,6 @@ void pack_and_send(int fd, ChordMessage *msg) {
   chord_message__pack(msg, buf);
   int s = send(fd, buf, msg_len, 0);
   assert(s >= 0);
-  close(fd);
 }
 
 // sends message, gets response, and copies to to_return

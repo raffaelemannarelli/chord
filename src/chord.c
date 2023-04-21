@@ -20,6 +20,7 @@
 
 // TODO:
 //   - TODO: put locks on variables
+//   - CRASH DURING SIMUTANEOUS STABILIZES
 //   - handle command line lookup
 //   - fill/utilize the entire successor list
 //   - implement other functions
@@ -94,17 +95,24 @@ void find_successor(Node *to_return, uint64_t id) {
   if (in_bounds_closed(id, own_node.key, successors[0]->key)) {
     memcpy(to_return, successors[0], sizeof(Node));
   } else {
+    fprintf(stderr, "NEED TO CHECK FINGER TABLE\n");
     // rough sketch
     Node *prime = closest_preceding_node(id);
     // table has not get updated for proper node, so skip
     if (prime == &own_node) {
+      fprintf(stderr, "IT IS ME ATM");
       memcpy(to_return, &own_node, sizeof(Node));
       return;
+    } else {
+      fprintf(stderr, "IT IS ANOTHER NODE\n");
+      ChordMessage response;
+      find_successor_request(&response, prime, id);
+      fprintf(stderr, "GOT RESPONSE\n");
+      assert(response.find_successor_response != NULL);
+      memcpy(to_return, response.find_successor_response->node,
+	     sizeof(Node));
     }
-    ChordMessage response;
-    find_successor_request(&response, prime, &own_node);
-    memcpy(to_return, response.find_successor_response->node,
-	   sizeof(Node));
+    fprintf(stderr, "DONE FIND SUCCESSOR");
   }
 }
 
@@ -156,7 +164,7 @@ void join(struct sockaddr_in *join_addr) {
   Node node;
   node_init(&node, join_addr);
   ChordMessage response;
-  find_successor_request(&response, &node, &own_node);
+  find_successor_request(&response, &node, own_node.key);
   
   // put received node into sucessors list
   successors[0] = malloc(sizeof(Node));
@@ -195,7 +203,9 @@ void handle_message(int fd) {
     fprintf(stderr, "find successor request received\n");
     Node successor;
     find_successor(&successor, msg->find_successor_request->key);
+    fprintf(stderr, "found successor: \n");
     find_successor_response(fd, &successor);
+    fprintf(stderr, "sent successor response\n");
   } else if (msg->msg_case == CHORD_MESSAGE__MSG_GET_PREDECESSOR_REQUEST) {
     // get predecessor
     // TODO: HOW DOES THIS BEHAVE IF PREDECESSOR == NULL???
@@ -317,7 +327,7 @@ int main(int argc, char *argv[]) {
   while (1) {
     int p = poll(pfds, 2, 100);    
 
-    fprintf(stderr, ".");
+    //fprintf(stderr, ".");
     for (int i = 0; i < 2 && p != 0; i++) {
       if (pfds[i].revents & POLLIN) { // if we have a conncetion
 	if (pfds[i].fd == STDIN_FILENO) {

@@ -17,7 +17,7 @@
 void notify_request(ChordMessage *to_return,
                     Node *send_to, Node *own_node);
 void find_successor_request(ChordMessage *to_return,
-                         Node *send_to, Node *own_node);
+                         Node *send_to, uint64_t key);
 void r_find_succ_request(ChordMessage *to_return,
 			 Node *send_to, int key,
 			 Node *requester);
