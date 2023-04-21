@@ -21,11 +21,11 @@
 #define FINGER_SIZE 160
 
 // TODO:
+//   - handle command line lookup
+//   - fill/utilize the entire successor list
+//   - implement other functions
 //   - prevent crashes when other nodes disconnect
-//   - handle printing
-//   - utilize the entire successor list
 //   - may be able to use query_id to hold fd info in nodes
-//   - handle messages within this program
 //   - determine if poll or threads should be utilized
 
 // global variables
