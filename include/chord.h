@@ -44,4 +44,5 @@ void join(struct sockaddr_in *join_addr);
 void init_finger_table();
 void handle_message(int fd,  ChordMessage *msg);
 void handle_command();
-
+void print_node(Node *node);
+void look_up();

@@ -20,10 +20,16 @@
 #define COMMAND_MAX 100 // IDK what this value should be rn
 #define FINGER_SIZE 160
 
+// TODO:
+//   - prevent crashes when other nodes disconnect
+//   - handle printing
+//   - utilize the entire successor list
+//   - may be able to use query_id to hold fd info in nodes
+//   - handle messages within this program
+//   - determine if poll or threads should be utilized
+
 // global variables
 // finger_table size set to bit length of SHA-1
-// NEED TO INITIALIZE ALL NODES IN ORDER TO PACK
-//const uint8_t KEY_LEN = 8;
 Node own_node;
 Node finger_table[FINGER_SIZE];
 Node *predecessor;
@@ -32,8 +38,6 @@ int n_successors;
 uint64_t node_key;
 char command[COMMAND_MAX]; // buffer for commands
 int next;
-
-// TODO: FIGURE OUT IF query_id in msg IS IMPORTANT
 
 void printKey(uint64_t key) {
   printf("%" PRIu64, key);
@@ -53,8 +57,7 @@ void stabilize() {
     }
     return;
   }
-  
-  
+
   // request successors' predecessor
   ChordMessage response;
   get_predecessor_request(&response, successors[0]);
@@ -63,7 +66,8 @@ void stabilize() {
 
   // see if x should be n's successor 
   if (in_bounds(x, own_node.key, successors[0]->key)) {
-    memcpy(successors[0],response.get_predecessor_response->node, sizeof(Node)); // successor = x;
+    memcpy(successors[0],response.get_predecessor_response->node,
+	   sizeof(Node)); // successor = x;
     }
 
   // notify n's successor of its existence to make n its predecessor
@@ -87,11 +91,9 @@ void notify(Node *pot_pred) {
 
 void find_successor(Node *to_return, uint64_t id) {  
   if (in_bounds_closed(id, own_node.key, successors[0]->key)) {
-    fprintf(stderr, "successor is own node\n");
     memcpy(to_return, successors[0], sizeof(Node));
   } else {
     // rough sketch
-    fprintf(stderr, "successor is not own node\n");
     Node *prime = closest_preceding_node(id);
     ChordMessage response;
     find_successor_request(&response, prime, &own_node);
@@ -111,15 +113,18 @@ Node* closest_preceding_node(uint64_t id){
 
 // not finished
 void fix_fingers() {
+  fprintf(stderr, "fixing fingers\n");
   next = next + 1;
-  if(next > FINGER_SIZE) next = 1; // m is the last entry in finger table so we loop
-
-  // finger_table[next] = find_successor(n + 2^(next - 1));  // send find successor queury
-  
+  if(next > FINGER_SIZE)
+    next = 1; // m is the last entry in finger table so we loop
+  // set to find successor queury
+  find_successor(&finger_table[next], own_node.key + (1<<(next-1)));
 }
 
 // not finished
 void check_predecessor() {
+  // TODO: PREVENT STALL IF THIS BREAKS
+  
 //   if(predecessor has failed) // send heartbeat message asking if theyre alright, someting
 //     predecessor = NULL;
 }
@@ -132,7 +137,6 @@ void create() {
   successors[0] = &own_node;
 }
 
-// TODO
 // handles joining a chord to existing ring
 void join(struct sockaddr_in *join_addr) {
   // predecessor = nil (cannot use NULL as error sending messages)
@@ -144,7 +148,6 @@ void join(struct sockaddr_in *join_addr) {
   ChordMessage response;
   find_successor_request(&response, &node, &own_node);
   
-  // TODO: what if this value is null?
   // put received node into sucessors list
   successors[0] = malloc(sizeof(Node));
   memcpy(successors[0],response.find_successor_response->node,sizeof(Node));
@@ -156,7 +159,6 @@ void init_finger_table() {
     finger_table[i] = own_node;
 }
 
-// TODO; no idea if any of this is correct
 void handle_message(int fd, ChordMessage *msg) {
   if (msg->msg_case == CHORD_MESSAGE__MSG_NOTIFY_REQUEST) {
     // notify
@@ -196,13 +198,24 @@ void handle_command() {
   line[strlen(line)-1] = '\0';
 
   if (strcmp("PrintState", line) == 0) {
-    printf("< Self...\n");
+    printf("\n< Self "), print_node(&own_node);
+    for (int i = 0; i < n_successors; i++)
+      printf("< Successor [%d] ", i), print_node(successors[i]);
+    for (int i = 0; i < FINGER_SIZE; i++)
+      printf("< Finger [%d] ", i), print_node(&finger_table[i]);
+
   } else if (strncmp("Lookup ", line, 7) == 0) {
     strcpy(string, line+7);
     printf("< %s\n", string);
   } else {
     printf("< ERROR: BAD FORMAT\n");
   }
+}
+
+void print_node(Node *node) {
+  char ip[24];
+  inet_ntop(AF_INET, &(node->address), ip, 24);
+  printf("%lu %s %d\n", node->key, ip, ntohs(node->port));
 }
 
 int main(int argc, char *argv[]) {
