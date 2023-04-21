@@ -45,7 +45,7 @@ void printKey(uint64_t key) {
 
 // may have to change connects---- it blocks :(
 void stabilize() {
-  fprintf(stderr, "stabilizing\n");
+  //fprintf(stderr, "stabilizing\n");
 
   // case when no successor known
   if (successors[0] == &own_node) {
@@ -78,14 +78,14 @@ void stabilize() {
 // RPC; replaces pred if potential pred is after pred
 void notify(Node *pot_pred) {
   if (predecessor == &own_node) {
-    fprintf(stderr, "was set to own node\n");
+    //fprintf(stderr, "was set to own node\n");
     predecessor = malloc(sizeof(Node));
     memcpy(predecessor, pot_pred, sizeof(Node));
-    fprintf(stderr, "pred set to %d\n", predecessor->port);
+    //fprintf(stderr, "pred set to %d\n", predecessor->port);
   } else if (in_bounds(pot_pred->key, predecessor->key,
 		       own_node.key)) {
     memcpy(predecessor, pot_pred, sizeof(Node));
-    fprintf(stderr, "pred set to %d\n", predecessor->port);
+    //fprintf(stderr, "pred set to %d\n", predecessor->port);
   }
 }
 
@@ -113,7 +113,7 @@ Node* closest_preceding_node(uint64_t id){
 
 // not finished
 void fix_fingers() {
-  fprintf(stderr, "fixing fingers\n");
+  //fprintf(stderr, "fixing fingers\n");
   next = next + 1;
   if(next > FINGER_SIZE)
     next = 1; // m is the last entry in finger table so we loop
@@ -162,12 +162,12 @@ void init_finger_table() {
 void handle_message(int fd, ChordMessage *msg) {
   if (msg->msg_case == CHORD_MESSAGE__MSG_NOTIFY_REQUEST) {
     // notify
-    fprintf(stderr, "notify received\n");
+    //fprintf(stderr, "notify received\n");
     notify(msg->notify_request->node);
     notify_response(fd);
   } else if (msg->msg_case == CHORD_MESSAGE__MSG_FIND_SUCCESSOR_REQUEST) {
     // finds and returns successor for requesting node
-    fprintf(stderr, "find successor request received\n");
+    //fprintf(stderr, "find successor request received\n");
     Node successor;
     find_successor(&successor, msg->find_successor_request->key);
     find_successor_response(fd, &successor);
@@ -177,13 +177,13 @@ void handle_message(int fd, ChordMessage *msg) {
     get_predecessor_response(fd, predecessor);
   } else if (msg->msg_case == CHORD_MESSAGE__MSG_CHECK_PREDECESSOR_REQUEST) {
     // check predecessor
-    fprintf(stderr, "check predecessor request received\n");
+    //fprintf(stderr, "check predecessor request received\n");
   } else if (msg->msg_case == CHORD_MESSAGE__MSG_GET_SUCCESSOR_LIST_REQUEST) {
     // get sucessor list
 
   } else if (msg->msg_case == CHORD_MESSAGE__MSG_R_FIND_SUCC_REQ) {
     // r find successor
-    fprintf(stderr, "r find successor request received\n");
+    //fprintf(stderr, "r find successor request received\n");
   }
   close(fd);
 }
@@ -193,12 +193,11 @@ void handle_command() {
   char line[256];
   char string[256];
 
-  printf("> ");
   fgets(line, 256, stdin);
   line[strlen(line)-1] = '\0';
 
   if (strcmp("PrintState", line) == 0) {
-    printf("\n< Self "), print_node(&own_node);
+    printf("< Self "), print_node(&own_node);
     for (int i = 0; i < n_successors; i++)
       printf("< Successor [%d] ", i), print_node(successors[i]);
     for (int i = 0; i < FINGER_SIZE; i++)
@@ -206,11 +205,13 @@ void handle_command() {
 
   } else if (strncmp("Lookup ", line, 7) == 0) {
     strcpy(string, line+7);
-    printf("\n< %s ", string);
+    printf("< %s ", string);
     look_up(hash_string(string));
   } else {
     printf("< ERROR: BAD FORMAT\n");
   }
+
+  printf("> "), fflush(stdout);
 }
 
 // TODO: implement message look-up
@@ -230,6 +231,8 @@ void print_node(Node *node) {
 }
 
 int main(int argc, char *argv[]) {
+  printf("> "), fflush(stdout);
+
   // arguments from parser  
   struct chord_arguments args = chord_parseopt(argc,argv);
   // initializes own_node
@@ -281,8 +284,8 @@ int main(int argc, char *argv[]) {
   // three threads
   // put mutex around global vars
   // main loop
-  fprintf(stderr, "entering listening loop with successor port %hu\n",
-	  successors[0]->port);
+  //fprintf(stderr, "entering listening loop with successor port %hu\n",
+  //successors[0]->port);
   while (1) {
     int p = poll(pfds, p_cons, 200);    
     clock_gettime(CLOCK_REALTIME, &curr_time);
@@ -303,12 +306,12 @@ int main(int argc, char *argv[]) {
     // handling packets
     for (int i = 0; i < p_cons && p != 0; i++) {
       if (pfds[i].revents & POLLIN) { // if we have a conncetion
-	fprintf(stderr, "got message\n");
+	//	fprintf(stderr, "got message\n");
 	if (pfds[i].fd == STDIN_FILENO) {
 	  handle_command();
 	} else if (pfds[i].fd == listenfd) {
 	  // socket that listen for incoming connections
-	  fprintf(stderr, "detected and adding new connection\n");
+	  // fprintf(stderr, "detected and adding new connection\n");
           int fd = accept(listenfd,(struct sockaddr*)&client_addr,&addr_size);
           assert(fd >= 0);	
           add_connection(&pfds,fd,&p_cons,&p_size);
@@ -318,10 +321,10 @@ int main(int argc, char *argv[]) {
 
           if (msg_len < 0) {
             // error case
-            fprintf(stderr, "error\n");
+            // fprintf(stderr, "error\n");
           } else if (msg_len == 0) {
             // connection closed case
-	    fprintf(stderr, "connection closed\n");
+	    // fprintf(stderr, "connection closed\n");
             remove_connection(&pfds, pfds[i].fd, &p_cons);
           } else {
             // normal message case
