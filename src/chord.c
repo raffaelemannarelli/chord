@@ -221,6 +221,7 @@ void look_up(uint64_t key) {
   if (successors[0] == &own_node) {
     // one node case
     printf("%lu\n", own_node.key);
+    print_node(&own_node);
   } else {
     // utilize key to lookup
   }
