@@ -80,7 +80,8 @@ uint64_t hash_string(char *str) {
   struct sha1sum_ctx *ctx = sha1sum_create(NULL, 0);
   assert(ctx != NULL);
   // call hash and return truncated value
-  sha1sum_finish(ctx, str, strlen(str), checksum);
+  sha1sum_finish(ctx, (const uint8_t*)str,
+		 strlen(str), checksum);
   sha1sum_destroy(ctx);
   return sha1sum_truncated_head(checksum);
 }

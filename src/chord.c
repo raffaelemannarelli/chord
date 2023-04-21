@@ -208,6 +208,7 @@ void handle_command() {
   } else if (strncmp("Lookup ", line, 7) == 0) {
     strcpy(string, line+7);
     printf("< %s ", string);
+    printf("%lu\n", hash_string(string));
     look_up(hash_string(string));
   } else {
     printf("< ERROR: BAD FORMAT\n");
@@ -220,7 +221,6 @@ void handle_command() {
 void look_up(uint64_t key) {
   if (successors[0] == &own_node) {
     // one node case
-    printf("%lu\n", own_node.key);
     print_node(&own_node);
   } else {
     // utilize key to lookup
