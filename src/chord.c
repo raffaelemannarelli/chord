@@ -17,10 +17,10 @@
 
 #define START_PFDS 16
 #define BUFFER_SIZE 1024
-#define COMMAND_MAX 100 // IDK what this value should be rn
-#define FINGER_SIZE 160
+#define FINGER_SIZE 64
 
 // TODO:
+//   - THERE IS SOME WEIRD DEADLOCK WITH STABILIZE
 //   - handle command line lookup
 //   - fill/utilize the entire successor list
 //   - implement other functions
@@ -36,7 +36,6 @@ Node *predecessor;
 Node **successors;
 int n_successors;
 uint64_t node_key;
-char command[COMMAND_MAX]; // buffer for commands
 int next;
 
 void printKey(uint64_t key) {
@@ -45,7 +44,7 @@ void printKey(uint64_t key) {
 
 // may have to change connects---- it blocks :(
 void stabilize() {
-  //fprintf(stderr, "stabilizing\n");
+  fprintf(stderr, "stabil");
 
   // case when no successor known
   if (successors[0] == &own_node) {
@@ -55,8 +54,10 @@ void stabilize() {
       ChordMessage placeholder;
       notify_request(&placeholder, successors[0], &own_node); 
     }
+    fprintf(stderr, "izing\n");
     return;
   }
+  
 
   // request successors' predecessor
   ChordMessage response;
@@ -72,7 +73,8 @@ void stabilize() {
 
   // notify n's successor of its existence to make n its predecessor
   ChordMessage placeholder;
-  notify_request(&placeholder, successors[0], &own_node); 
+  notify_request(&placeholder, successors[0], &own_node);
+  fprintf(stderr, "izing\n");
 }
 
 // RPC; replaces pred if potential pred is after pred
@@ -95,6 +97,11 @@ void find_successor(Node *to_return, uint64_t id) {
   } else {
     // rough sketch
     Node *prime = closest_preceding_node(id);
+    // table has not get updated for proper node, so skip
+    if (prime == &own_node) {
+      memcpy(to_return, &own_node, sizeof(Node));
+      return;
+    }
     ChordMessage response;
     find_successor_request(&response, prime, &own_node);
     memcpy(to_return, response.find_successor_response->node,
@@ -113,12 +120,15 @@ Node* closest_preceding_node(uint64_t id){
 
 // not finished
 void fix_fingers() {
-  //fprintf(stderr, "fixing fingers\n");
-  next = next + 1;
-  if(next > FINGER_SIZE)
-    next = 1; // m is the last entry in finger table so we loop
+  // TODO: does key+val need a modulus?
+  fprintf(stderr, "fixing %dth", next+1);
   // set to find successor queury
-  find_successor(&finger_table[next], own_node.key + (1<<(next-1)));
+  find_successor(&finger_table[next],
+		 own_node.key+(1<<(next)));
+  // loop next
+  if(next++ >= FINGER_SIZE)
+    next = 0;
+  fprintf(stderr, " finger\n");
 }
 
 // not finished
@@ -164,12 +174,12 @@ void init_finger_table() {
 void handle_message(int fd, ChordMessage *msg) {
   if (msg->msg_case == CHORD_MESSAGE__MSG_NOTIFY_REQUEST) {
     // notify
-    //fprintf(stderr, "notify received\n");
+    fprintf(stderr, "notify received\n");
     notify(msg->notify_request->node);
     notify_response(fd);
   } else if (msg->msg_case == CHORD_MESSAGE__MSG_FIND_SUCCESSOR_REQUEST) {
     // finds and returns successor for requesting node
-    //fprintf(stderr, "find successor request received\n");
+    fprintf(stderr, "find successor request received\n");
     Node successor;
     find_successor(&successor, msg->find_successor_request->key);
     find_successor_response(fd, &successor);
@@ -182,7 +192,7 @@ void handle_message(int fd, ChordMessage *msg) {
     //fprintf(stderr, "check predecessor request received\n");
   } else if (msg->msg_case == CHORD_MESSAGE__MSG_GET_SUCCESSOR_LIST_REQUEST) {
     // get sucessor list
-
+    
   } else if (msg->msg_case == CHORD_MESSAGE__MSG_R_FIND_SUCC_REQ) {
     // r find successor
     //fprintf(stderr, "r find successor request received\n");
@@ -223,7 +233,9 @@ void look_up(uint64_t key) {
     // one node case
     print_node(&own_node);
   } else {
-    // utilize key to lookup
+    Node node;
+    find_successor(&node, key);
+    print_node(&node);
   }
 }
 

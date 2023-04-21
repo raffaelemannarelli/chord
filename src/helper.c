@@ -112,7 +112,7 @@ void update_chord(struct chord_arguments *args,
     stabilize();
     clock_gettime(CLOCK_REALTIME, last_stab);
   }
-  if (time_diff(last_stab,curr_time) >
+  if (time_diff(last_ff,curr_time) >
       deci_to_sec(args->fix_fingers_period)) {
     fix_fingers();
     clock_gettime(CLOCK_REALTIME, last_ff);
