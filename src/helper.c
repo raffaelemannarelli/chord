@@ -17,33 +17,6 @@
 
 #define BACKLOG 16
 
-// adds connection to pollfd array; handles p_cons, p_size, ect.
-void add_connection(struct pollfd **pfds, int fd,
-		    int *p_cons, int *p_size) {
-  if (*p_cons >= *p_size) {
-    *p_size = 2*(*p_size);
-    *pfds = realloc(*pfds, sizeof(struct pollfd)*(*p_size));
-  }
-
-  (*pfds)[*p_cons].fd = fd;
-  (*pfds)[*p_cons].events = POLLIN;
-  (*p_cons)++;
-}
-
-// removes connection from pollfd array; handles p_cons, p_size, ect.
-void remove_connection(struct pollfd **pfds, int fd, int* p_cons) {
-  close(fd);
-  int i = 0;
-  while ((*pfds)[i].fd != fd)
-    i++;
-  while (i-1 < *p_cons) {
-    (*pfds)[i] = (*pfds)[i+1];
-    i++;
-  }
-
-  *p_cons = (*p_cons)-1;
-}
-
 // returns double of t2 - t1
 double time_diff(struct timespec *t1, struct timespec *t2) {
   double result = (double) (t2->tv_sec - t1->tv_sec);

@@ -2,10 +2,6 @@
 #include "chord.h"
 
 // helper functions
-void add_connection(struct pollfd **pfds, int fd,
-                    int *p_cons, int *p_size);
-void remove_connection(struct pollfd **pfds, int fd,
-		       int* p_cons);
 double time_diff(struct timespec *t1,
 		 struct timespec *t2);
 double deci_to_sec(int time);

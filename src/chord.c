@@ -15,12 +15,11 @@
 #include "message.h"
 #include "helper.h"
 
-#define START_PFDS 16
 #define BUFFER_SIZE 1024
 #define FINGER_SIZE 64
 
 // TODO:
-//   - THERE IS SOME WEIRD DEADLOCK WITH STABILIZE
+//   - TODO: put locks on variables
 //   - handle command line lookup
 //   - fill/utilize the entire successor list
 //   - implement other functions
@@ -126,7 +125,7 @@ void fix_fingers() {
   find_successor(&finger_table[next],
 		 own_node.key+(1<<(next)));
   // loop next
-  if(next++ >= FINGER_SIZE)
+  if(++next >= FINGER_SIZE)
     next = 0;
   fprintf(stderr, " finger\n");
 }
@@ -171,7 +170,21 @@ void init_finger_table() {
     finger_table[i] = own_node;
 }
 
-void handle_message(int fd, ChordMessage *msg) {
+void handle_message(int fd) {
+  uint8_t buf[BUFFER_SIZE];
+  ChordMessage *msg;
+  
+  int msg_len = recv(fd, buf, BUFFER_SIZE, 0);		 
+  if (msg_len < 0) {
+    return;
+  } else if (msg_len == 0) {
+    return;
+  } else {
+    // normal message case
+    msg = chord_message__unpack(NULL, msg_len, buf);
+    assert(msg != NULL);
+  }
+    
   if (msg->msg_case == CHORD_MESSAGE__MSG_NOTIFY_REQUEST) {
     // notify
     fprintf(stderr, "notify received\n");
@@ -197,6 +210,8 @@ void handle_message(int fd, ChordMessage *msg) {
     // r find successor
     //fprintf(stderr, "r find successor request received\n");
   }
+  
+  chord_message__free_unpacked(msg, NULL);
   close(fd);
 }
 
@@ -275,8 +290,7 @@ int main(int argc, char *argv[]) {
   }
     
   // pfds table and book-keeping to manage all connections
-  int p_size = START_PFDS, p_cons = 2;
-  struct pollfd *pfds = malloc(sizeof(struct pollfd)*(p_size));
+  struct pollfd *pfds = malloc(sizeof(struct pollfd)*2);
  
 
   // command fle descriptor
@@ -287,9 +301,9 @@ int main(int argc, char *argv[]) {
   pfds[1].fd = listenfd;
   pfds[1].events = POLLIN;
 
-  uint8_t buf[BUFFER_SIZE];
   struct sockaddr_in client_addr;
   socklen_t addr_size = sizeof(client_addr);
+
   // three threads
   // put mutex around global vars
   // main loop
@@ -297,54 +311,27 @@ int main(int argc, char *argv[]) {
   //successors[0]->port);
 
   // separate thread handles calling update functions
-  pthread_t thread_id;
-  pthread_create(&thread_id, NULL, &update_chord, &args);
+  pthread_t update_id;
+  pthread_create(&update_id, NULL, &update_chord, &args);
   
   while (1) {
-    int p = poll(pfds, p_cons, 200);    
-    
-    // TODO: handling incoming messages
-    // Handling incoming command on std io, this fd dedicated to commands
-    // if (pfds[0].revents & POLLIN) handleCommand();
+    int p = poll(pfds, 2, 100);    
 
-    // is there a new incoming connection
-    // if ()
-    
-    // thread() ---> 
-
-    // handling packets
-    for (int i = 0; i < p_cons && p != 0; i++) {
+    fprintf(stderr, ".");
+    for (int i = 0; i < 2 && p != 0; i++) {
       if (pfds[i].revents & POLLIN) { // if we have a conncetion
-	//	fprintf(stderr, "got message\n");
 	if (pfds[i].fd == STDIN_FILENO) {
 	  handle_command();
 	} else if (pfds[i].fd == listenfd) {
 	  // socket that listen for incoming connections
-	  // fprintf(stderr, "detected and adding new connection\n");
           int fd = accept(listenfd,(struct sockaddr*)&client_addr,&addr_size);
-          assert(fd >= 0);	
-          add_connection(&pfds,fd,&p_cons,&p_size);
-        } else {
-          // socket for an existing chord connection
-          int msg_len = recv(pfds[i].fd, buf, BUFFER_SIZE, 0);	
+          assert(fd >= 0);
 
-          if (msg_len < 0) {
-            // error case
-            // fprintf(stderr, "error\n");
-          } else if (msg_len == 0) {
-            // connection closed case
-	    // fprintf(stderr, "connection closed\n");
-            remove_connection(&pfds, pfds[i].fd, &p_cons);
-          } else {
-            // normal message case
-            ChordMessage *msg = chord_message__unpack(NULL, msg_len, buf);
-            assert(msg != NULL);
-            handle_message(pfds[i].fd, msg);
-            chord_message__free_unpacked(msg, NULL);
-	    remove_connection(&pfds, pfds[i].fd, &p_cons);
-	    i--;
-          }
-        } // end of if else pfds.fd == listen
+	  pthread_t thread_id;
+	  int p = pthread_create(&thread_id, NULL, &handle_message, (void*) fd);
+	  if (p == pthread_self())
+	    pthread_exit(NULL);
+	}
       } // end of pfds.revents pollin if statement
     } // end of p_cons loop
   }      
