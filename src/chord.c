@@ -129,8 +129,7 @@ void fix_fingers() {
   // TODO: does key+val need a modulus?
   fprintf(stderr, "fixing %dth", next+1);
   // set to find successor queury
-  find_successor(&finger_table[next],
-		 own_node.key+(1<<(next)));
+  find_successor(&finger_table[next], own_node.key+(1<<(next)));
   // loop next
   if(++next >= FINGER_SIZE)
     next = 0;
@@ -303,6 +302,31 @@ int main(int argc, char *argv[]) {
   } else {
     join(&(args.join_address));
     // TODO: need to get all sucessor nodes after node obtained during join
+
+    // we can do this inductivly no? idk how to spell that
+    // Node curr = own_node
+    // for (int i = 0; i < number; i++){
+    //     succ[i] = get_succ(curr)
+    //     curr = succ[i]
+    //
+    //}
+
+    // or we can just do this assuming that everyones lists are correct
+    // should work, my worry is that if for whatever reason the ring hasn't actually
+    // become a ring yet, it might get fucked up
+
+    // notes
+    // successor[0] already declared in join() function, so we just need 1:
+    ChordMessage response;
+    get_successor_list_request(&response, successor[0]);
+
+    // we NEED to check the length of this, if it is not enough
+    // we need to call the function on the last of node of the returned list to get the rest
+
+    
+
+
+
   }
     
   // pfds table and book-keeping to manage all connections
@@ -327,6 +351,17 @@ int main(int argc, char *argv[]) {
   
   while (1) {
     int p = poll(pfds, 2, 100);    
+
+
+    // could we not just do
+
+    // if (pfds[0].revents & POLLIN) handle_command();
+    // if (pfds[1].revents & POLLIN){
+    //     int fd = accept(listenfd,(struct sockaddr*)&client_addr,&addr_size);
+    //     assert(fd >= 0);
+    //     pthread_t thread_id;
+	  //     pthread_create(&thread_id, NULL, &handle_message, (void*) fd);
+    // }
 
     fprintf(stderr, ".");
     for (int i = 0; i < 2 && p != 0; i++) {
