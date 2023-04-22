@@ -140,7 +140,13 @@ void fix_fingers() {
 // not finished
 void check_predecessor() {
   // TODO: PREVENT STALL IF THIS BREAKS
-  
+  ChordMessage response;
+  check_predecessor_request(&response, predecessor); // ask our pred if he's still there
+  // note, im not sure if the response will actually determinei if pred has failed, cuz if it has then
+  // i mean we won't get a response, and there is no timeout timer
+  // i think how we determine if a pred has failed is based on the return value of connect()
+  // so we may have to rethink this format 
+
 //   if(predecessor has failed) // send heartbeat message asking if theyre alright, someting
 //     predecessor = NULL;
 }
