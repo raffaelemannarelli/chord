@@ -1,5 +1,5 @@
 CC=gcc
-CFLAG_INCLUDE=-I. -Iinclude -Iprotobuf
+CFLAG_INCLUDE=-I. -Iinclude -Iprotobuf -pthread
 CFLAGS=-Wall $(CFLAG_INCLUDE) -Wextra -std=gnu99 -ggdb
 LDLIBS=-lprotobuf-c -lcrypto
 SRC=src
