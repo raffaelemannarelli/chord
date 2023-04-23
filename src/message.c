@@ -172,9 +172,9 @@ ChordMessage* send_and_return(ChordMessage *to_return,
   int recv_len = recv(fd, buf, BUFFER_SIZE, 0);
   close(fd);
 
-  ChordMessage *response = chord_message__unpack(NULL, recv_len,
-						 buf);
+  ChordMessage *response = chord_message__unpack(NULL, recv_len, buf);
   if (response->msg_case == CHORD_MESSAGE__MSG_GET_SUCCESSOR_LIST_RESPONSE) {
+    fprintf(stderr, "returning successor list response\n");
     return response;
   }
   

@@ -224,7 +224,7 @@ void handle_message(int fd) {
     //fprintf(stderr, "check predecessor request received\n");
   } else if (msg->msg_case == CHORD_MESSAGE__MSG_GET_SUCCESSOR_LIST_REQUEST) {
     // get sucessor list
-    
+    get_successor_list_response(fd, successors, n_successors);
   } else if (msg->msg_case == CHORD_MESSAGE__MSG_R_FIND_SUCC_REQ) {
     // r find successor
     //fprintf(stderr, "r find successor request received\n");
@@ -236,9 +236,15 @@ void handle_message(int fd) {
 
 void update_successors(int num_successors){
   if (!nodes_equal(successors[0], &own_node)) {
+    fprintf(stderr, "updating successors\n");
     ChordMessage placeholder; // remove this when get_succ_list_req parameters are fixed
     ChordMessage *response = get_successor_list_request(&placeholder, successors[0]);
-    memcpy(&successors[1], response->get_successor_list_response->successors, sizeof(Node *) * (num_successors - 1));
+    fprintf(stderr, "got response\n");
+    assert(response != NULL);
+    GetSuccessorListResponse *list = response->get_successor_list_response;
+    fprintf(stderr, "got list\n");
+    for (int i = 1; i < n_successors; i++)
+      memcpy(successors[i], &list->successors[i-1], sizeof(Node));
     chord_message__free_unpacked(response,NULL); 
   }
 }
