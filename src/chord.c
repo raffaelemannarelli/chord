@@ -139,8 +139,8 @@ void fix_fingers() {
 // not finished
 void check_predecessor() {
   // TODO: PREVENT STALL IF THIS BREAKS
-  ChordMessage response;
-  check_predecessor_request(&response, predecessor); // ask our pred if he's still there
+  // ChordMessage response;
+  // check_predecessor_request(&response, predecessor); // ask our pred if he's still there
   // note, im not sure if the response will actually determinei if pred has failed, cuz if it has then
   // i mean we won't get a response, and there is no timeout timer
   // i think how we determine if a pred has failed is based on the return value of connect()
@@ -230,6 +230,28 @@ void handle_message(int fd) {
   close(fd);
 }
 
+void update_successors(int num_successors){
+
+  int i = 0;     // total length added/updated to our successor list
+  int local;     // length of the n' successors list
+    
+  while(num_added < num_successors){
+
+    ChordMessage response;
+    get_successor_list_request(&response, successors[i]);  
+    local = response->successors_c;                 
+
+    if (i + local >= num_successors) {    
+      memcpy(&successors[i + local], response->successors, sizeof(Node *) * (num_successors - i));
+      break;                                             
+    }
+    memcpy(&successors[i], response->successors, sizeof(Node *) * local);
+    i += local;          
+
+  }
+
+}
+
 // handles commands from stdin
 void handle_command() {
   char line[256];
@@ -302,30 +324,7 @@ int main(int argc, char *argv[]) {
   } else {
     join(&(args.join_address));
     // TODO: need to get all sucessor nodes after node obtained during join
-
-    // we can do this inductivly no? idk how to spell that
-    // Node curr = own_node
-    // for (int i = 0; i < number; i++){
-    //     succ[i] = get_succ(curr)
-    //     curr = succ[i]
-    //
-    //}
-
-    // or we can just do this assuming that everyones lists are correct
-    // should work, my worry is that if for whatever reason the ring hasn't actually
-    // become a ring yet, it might get fucked up
-
-    // notes
-    // successor[0] already declared in join() function, so we just need 1:
-    ChordMessage response;
-    get_successor_list_request(&response, successor[0]);
-
-    // we NEED to check the length of this, if it is not enough
-    // we need to call the function on the last of node of the returned list to get the rest
-
-    
-
-
+    update_successors(args.num_successors);
 
   }
     
@@ -342,8 +341,8 @@ int main(int argc, char *argv[]) {
   // three threads
   // put mutex around global vars
   // main loop
-  //fprintf(stderr, "entering listening loop with successor port %hu\n",
-  //successors[0]->port);
+  // fprintf(stderr, "entering listening loop with successor port %hu\n",
+  // successors[0]->port);
 
   // separate thread handles calling update functions
   pthread_t update_id;
