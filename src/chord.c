@@ -51,6 +51,9 @@ void stabilize() {
     if (predecessor != &own_node) {
       successors[0] = malloc(sizeof(Node));
       memcpy(successors[0], predecessor, sizeof(Node));
+
+      // update_successor ??
+
       ChordMessage placeholder;
       notify_request(&placeholder, successors[0], &own_node); 
     }
@@ -69,6 +72,9 @@ void stabilize() {
   if (in_bounds(x, own_node.key, successors[0]->key)) {
     memcpy(successors[0],response.get_predecessor_response->node,
 	   sizeof(Node)); // successor = x;
+
+     // update_successor ??
+     
     }
 
   // notify n's successor of its existence to make n its predecessor
