@@ -174,7 +174,6 @@ ChordMessage* send_and_return(ChordMessage *to_return,
 
   ChordMessage *response = chord_message__unpack(NULL, recv_len, buf);
   if (response->msg_case == CHORD_MESSAGE__MSG_GET_SUCCESSOR_LIST_RESPONSE) {
-    fprintf(stderr, "returning successor list response\n");
     return response;
   }
   
