@@ -235,8 +235,6 @@ void update_successors(int num_successors){
   int i = 0;     // total length added/updated to our successor list
   int local;     // length of the n' successors list
   int count;
-
-  count = (i + local >= num_successors) ? (num_successors - i) : (local);
     
   while(i < num_successors){
 
