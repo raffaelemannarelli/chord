@@ -14,4 +14,4 @@ void addr_from_node(struct sockaddr_in *addr, Node *node);
 int in_bounds(int x, int a, int b);
 int in_bounds_closed(int x, int a, int b);
 void update_chord(struct chord_arguments *args);
-
+int nodes_equal(Node *n1, Node *n2);

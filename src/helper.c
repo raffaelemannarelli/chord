@@ -142,3 +142,10 @@ int in_bounds_closed(int x, int a, int b) {
       return 0;
   }
 }
+
+int nodes_equal(Node *n1, Node *n2) {
+  if (memcmp(n1, n2, sizeof(Node)) == 0)
+    return 1;
+  else
+    return 0;
+}
