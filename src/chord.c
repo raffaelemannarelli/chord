@@ -236,8 +236,9 @@ void handle_message(int fd) {
 
 void update_successors(int num_successors){
   if (!nodes_equal(successors[0], &own_node)) {
-    ChordMessage *response = get_successor_list_request(successors[0]);
-    memcpy(&successors[1], response->successors, sizeof(Node *) * (num_successors - 1));
+    ChordMessage placeholder; // remove this when get_succ_list_req parameters are fixed
+    ChordMessage *response = get_successor_list_request(&placeholder, successors[0]);
+    memcpy(&successors[1], response->get_successor_list_response->successors, sizeof(Node *) * (num_successors - 1));
     chord_message__free_unpacked(response,NULL); 
   }
 }
