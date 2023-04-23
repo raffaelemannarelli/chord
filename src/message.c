@@ -163,8 +163,7 @@ void send_and_return(ChordMessage *to_return,
   int recv_len = recv(fd, buf, BUFFER_SIZE, 0);
   close(fd);
 
-  ChordMessage *response = chord_message__unpack(NULL, recv_len,
-						 buf);
+  ChordMessage *response = chord_message__unpack(NULL, recv_len, buf);
   memcpy(to_return,response,sizeof(ChordMessage));
   chord_message__free_unpacked(response, NULL);
 }
