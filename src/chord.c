@@ -47,7 +47,7 @@ void stabilize() {
   fprintf(stderr, "stabil");
 
   // case when no successor known
-  if (successors[0] == &own_node) {
+  if (nodes_equal(successors[0], &own_node)) {
     if (predecessor != &own_node) {
       successors[0] = malloc(sizeof(Node));
       memcpy(successors[0], predecessor, sizeof(Node));
@@ -229,7 +229,7 @@ void handle_message(int fd) {
 }
 
 void update_successors(int num_successors){
-  if (!nodes_equal(successors[0], own_node)) {
+  if (!nodes_equal(successors[0], &own_node)) {
     ChordMessage *response = get_successor_list_request(successors[0]);
     memcpy(&successors[1], response->successors, sizeof(Node *) * (num_successors - 1));
     chord_message__free_unpacked(response,NULL); 
