@@ -235,17 +235,17 @@ void update_successors(int num_successors){
   int i = 0;     // total length added/updated to our successor list
   int local;     // length of the n' successors list
     
-  while(i < num_successors){
+  while(num_added < num_successors){
 
     ChordMessage response;
     get_successor_list_request(&response, successors[i]);  
-    local = response.get_successor_list_response->n_successors;                 
+    local = response->successors_c;                 
 
     if (i + local >= num_successors) {    
-      memcpy(&successors[i + 1], response.get_successor_list_response->successors, sizeof(Node *) * (num_successors - i));
+      memcpy(&successors[i + 1], response->successors, sizeof(Node *) * (num_successors - i));
       break;                                             
     }
-    memcpy(&successors[i + 1], response.get_successor_list_response->successors, sizeof(Node *) * local);
+    memcpy(&successors[i + 1], response->successors, sizeof(Node *) * local);
     i += local;          
 
   }
