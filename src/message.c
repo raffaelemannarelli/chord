@@ -70,14 +70,14 @@ void check_predecessor_request(ChordMessage *to_return,
   send_and_return(to_return, &msg, send_to);
 }
 
-void get_successor_list_request(ChordMessage *to_return,
+ChordMessage* get_successor_list_request(ChordMessage *to_return,
 				Node *send_to) {
   ChordMessage msg = CHORD_MESSAGE__INIT;
   GetSuccessorListRequest request = GET_SUCCESSOR_LIST_REQUEST__INIT;
   msg.msg_case = CHORD_MESSAGE__MSG_GET_SUCCESSOR_LIST_REQUEST;
   msg.get_successor_list_request = &request;
 
-  send_and_return(to_return, &msg, send_to);
+  return send_and_return(to_return, &msg, send_to);
 }
 
 // RESPONSE FUNCTIONS
@@ -129,11 +129,23 @@ void check_predecessor_response(int fd) {
 void get_successor_list_response(int fd, Node **successors, int num) {
   ChordMessage msg = CHORD_MESSAGE__INIT;
   GetSuccessorListResponse response = GET_SUCCESSOR_LIST_RESPONSE__INIT;
-  for (int i = 0; i < num; i++)
-    response.successors[i] = successors[i];
+  Node **nodes = malloc(sizeof(Node*)*num);
+  fprintf(stderr, "setting\n");
+  for (int i = 0; i < num; i++) {
+    nodes[i] = malloc(sizeof(Node));
+    memcpy(nodes[i], successors[i], sizeof(Node));
+  }
+
+  fprintf(stderr, "last prep\n");
+  response.n_successors = num;
+  response.successors = nodes;
   msg.msg_case = CHORD_MESSAGE__MSG_GET_SUCCESSOR_LIST_RESPONSE;
   msg.get_successor_list_response = &response;
+  fprintf(stderr, "packing and sending\n");
   pack_and_send(fd, &msg);
+  for (int i = 0; i < num; i++)
+    free(nodes[i]);
+  free(nodes);
 }
 
 
@@ -152,7 +164,7 @@ void pack_and_send(int fd, ChordMessage *msg) {
 }
 
 // sends message, gets response, and copies to to_return
-void send_and_return(ChordMessage *to_return,
+ChordMessage* send_and_return(ChordMessage *to_return,
 			      ChordMessage *msg, Node *to_send) {
   uint8_t buf[BUFFER_SIZE];
   int send_len = chord_message__get_packed_size(msg);
@@ -165,8 +177,13 @@ void send_and_return(ChordMessage *to_return,
 
   ChordMessage *response = chord_message__unpack(NULL, recv_len,
 						 buf);
+  if (response->msg_case == CHORD_MESSAGE__MSG_GET_SUCCESSOR_LIST_RESPONSE) {
+    return response;
+  }
+  
   memcpy(to_return,response,sizeof(ChordMessage));
   chord_message__free_unpacked(response, NULL);
+  return NULL;
 }
 
 // makes socket and connection from given node

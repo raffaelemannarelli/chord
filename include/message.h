@@ -25,8 +25,8 @@ void get_predecessor_request(ChordMessage *to_return,
                           Node *send_to);
 void check_predecessor_request(ChordMessage *to_return,
 			       Node *send_to);
-void get_successor_list_request(ChordMessage *to_return,
-				Node *send_to);
+ChordMessage* get_successor_list_request(ChordMessage *to_return,
+					 Node *send_to);
 
 // RESPONSES
 void notify_response(int fd);
@@ -40,7 +40,7 @@ void get_successor_list_response(int fd,
 
 // HELPER FUNCTIONS
 void pack_and_send(int fd, ChordMessage *msg);
-void send_and_return(ChordMessage *to_return,
+ChordMessage* send_and_return(ChordMessage *to_return,
 		     ChordMessage *msg, Node *to_send);
 int socket_and_connect(Node *node);
 void node_init(Node *node, struct sockaddr_in *addr);
