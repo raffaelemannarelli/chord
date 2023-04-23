@@ -232,25 +232,19 @@ void handle_message(int fd) {
 
 void update_successors(int num_successors){
 
-  int i = 0;     // total length added/updated to our successor list
-  int local;     // length of the n' successors list
-    
-  while(num_added < num_successors){
-
-    ChordMessage response;
-    get_successor_list_request(&response, successors[i]);  
-    local = response->successors_c;                 
-
-    if (i + local >= num_successors) {    
-      memcpy(&successors[i + 1], response->successors, sizeof(Node *) * (num_successors - i));
-      break;                                             
-    }
-    memcpy(&successors[i + 1], response->successors, sizeof(Node *) * local);
-    i += local;          
-
+  if(nodes_equal(successors[0], own_node)){
+    memcpy(&successors[1], successors, sizeof(Node *) * (num_successors - 1));
+    return;
   }
 
-}
+  ChordMessage *response = get_successor_list_request(successors[0]);  
+        
+  memcpy(&successors[1], response->successors, sizeof(Node *) * (num_successors - 1));
+
+  chord_message__free_unpacked(response,NULL)   
+  }
+
+
 
 // handles commands from stdin
 void handle_command() {
