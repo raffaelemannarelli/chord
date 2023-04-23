@@ -161,7 +161,6 @@ void create() {
   predecessor = &own_node; 
   // deal with successors, itself is the successor
   successors[0] = &own_node;
-  n_successors = 1;
 }
 
 // handles joining a chord to existing ring
