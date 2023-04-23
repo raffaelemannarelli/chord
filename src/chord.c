@@ -234,27 +234,20 @@ void update_successors(int num_successors){
 
   int i = 0;     // total length added/updated to our successor list
   int local;     // length of the n' successors list
-  int count;
-
-  count = (i + local >= num_successors) ? (num_successors - i) : (local);
     
   while(i < num_successors){
 
-    // case when we encounter ourselves
-    if (successors[i] == &own_node) {
-      count = (i + i >= num_successors) ? (num_successors - i) : (i); 
-      memcpy(&successors[i+1], successors, sizeof(Node *) * count);
-      i += count;
-      continue;
-    }
-
     ChordMessage response;
     get_successor_list_request(&response, successors[i]);  
-    local = response.get_successor_list_response->n_successors;         
+    local = response.get_successor_list_response->n_successors;                 
 
-    count = (i + local >= num_successors) ? (num_successors - i) : (local);        
-    memcpy(&successors[i + 1], response.get_successor_list_response->successors, sizeof(Node *) * count);
-    i += count;          
+    if (i + local >= num_successors) {    
+      memcpy(&successors[i + 1], response.get_successor_list_response->successors, sizeof(Node *) * (num_successors - i));
+      break;                                             
+    }
+    memcpy(&successors[i + 1], response.get_successor_list_response->successors, sizeof(Node *) * local);
+    i += local;          
+
   }
 
 }
