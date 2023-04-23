@@ -245,7 +245,7 @@ void update_successors(int num_successors){
       memcpy(&successors[i + local], response->successors, sizeof(Node *) * (num_successors - i));
       break;                                             
     }
-    memcpy(&successors[i], response->successors, sizeof(Node *) * local);
+    memcpy(&successors[i + local], response->successors, sizeof(Node *) * local);
     i += local;          
 
   }
