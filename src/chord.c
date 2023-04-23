@@ -47,7 +47,7 @@ void stabilize() {
   fprintf(stderr, "stabil");
 
   // case when no successor known
-  if (successors[0] == &own_node) {
+  if (nodes_equal(successors[0], &own_node)) {
     if (predecessor != &own_node) {
       successors[0] = malloc(sizeof(Node));
       memcpy(successors[0], predecessor, sizeof(Node));
@@ -61,7 +61,6 @@ void stabilize() {
     return;
   }
   
-
   // request successors' predecessor
   ChordMessage response;
   get_predecessor_request(&response, successors[0]);
@@ -178,7 +177,6 @@ void join(struct sockaddr_in *join_addr) {
   
   // put received node into sucessors list
   successors[0] = malloc(sizeof(Node));
-  n_successors = 1;
   memcpy(successors[0],response.find_successor_response->node,sizeof(Node));
 }
 
@@ -237,18 +235,12 @@ void handle_message(int fd) {
 }
 
 void update_successors(int num_successors){
-
-  if(nodes_equal(successors[0], own_node)){
-    memcpy(&successors[1], successors, sizeof(Node *) * (num_successors - 1));
-    return;
+  if (!nodes_equal(successors[0], &own_node)) {
+    ChordMessage *response = get_successor_list_request(successors[0]);
+    memcpy(&successors[1], response->successors, sizeof(Node *) * (num_successors - 1));
+    chord_message__free_unpacked(response,NULL); 
   }
-
-  ChordMessage *response = get_successor_list_request(successors[0]);  
-        
-  memcpy(&successors[1], response->successors, sizeof(Node *) * (num_successors - 1));
-
-  chord_message__free_unpacked(response,NULL)   
-  }
+}
 
 
 
@@ -308,11 +300,13 @@ int main(int argc, char *argv[]) {
   
   // book-keeping for surrounding nodes
   next = 0; // for finger table
+  n_successors = args.num_successors;
   predecessor = &own_node;
-  successors = malloc(sizeof(Node *)*args.num_successors);
-  for (int i = 0; i < args.num_successors; i++)
-    successors[i] = NULL;
-  n_successors = 0;
+  successors = malloc(sizeof(Node *)*n_successors);
+  for (int i = 0; i < args.num_successors; i++) {
+    successors[i] = malloc(sizeof(Node));
+    memcpy(successors[i], &own_node,sizeof(Node));
+  }
   
   // create and bind listening socket for incoming connections
   int listenfd = socket_and_assert();
@@ -325,7 +319,6 @@ int main(int argc, char *argv[]) {
     join(&(args.join_address));
     // TODO: need to get all sucessor nodes after node obtained during join
     update_successors(args.num_successors);
-
   }
     
   // pfds table and book-keeping to manage all connections
