@@ -129,24 +129,21 @@ void get_successor_list_response(int fd, Node **successors, int num) {
   ChordMessage msg = CHORD_MESSAGE__INIT;
   GetSuccessorListResponse response = GET_SUCCESSOR_LIST_RESPONSE__INIT;
   Node **nodes = malloc(sizeof(Node*)*num);
-  fprintf(stderr, "copying list of size %d\n", num);
   for (int i = 0; i < num; i++) {
     nodes[i] = malloc(sizeof(Node));
     node__init(nodes[i]);
     nodes[i]->key = successors[i]->key;
     nodes[i]->address = successors[i]->address;
     nodes[i]->port = successors[i]->port;
-    //memcpy(nodes[i], successors[i], sizeof(Node));
   }
-  fprintf(stderr, "done copying list\n");
   response.n_successors = num;
   response.successors = nodes;
   msg.msg_case = CHORD_MESSAGE__MSG_GET_SUCCESSOR_LIST_RESPONSE;
   msg.get_successor_list_response = &response;
   pack_and_send(fd, &msg);
-  //for (int i = 0; i < num; i++)
-  //  free(nodes[i]);
-  //free(nodes);
+  for (int i = 0; i < num; i++)
+    free(nodes[i]);
+  free(nodes);
 }
 
 
@@ -156,15 +153,11 @@ void get_successor_list_response(int fd, Node **successors, int num) {
 
 // pack and send message
 void pack_and_send(int fd, ChordMessage *msg) {
-  fprintf(stderr,"packing\n");
   uint8_t buf[BUFFER_SIZE];
   int msg_len = chord_message__get_packed_size(msg);
-  fprintf(stderr,"got length\n");
   chord_message__pack(msg, buf);
-  fprintf(stderr,"packed\n");
   int s = send(fd, buf, msg_len, 0);
   assert(s >= 0);
-  fprintf(stderr,"sent\n");
 }
 
 // sends message, gets response, and copies to to_return
