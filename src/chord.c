@@ -164,6 +164,11 @@ void join(struct sockaddr_in *join_addr) {
   find_successor_request(&response, &node, own_node.key);
   
   // put received node into sucessors list
+  successors[0] = malloc(sizeof(Node));
+
+  assert(response.find_successor_response != NULL);
+  assert(response.find_successor_response->node != NULL);
+
   memcpy(successors[0],response.find_successor_response->node,sizeof(Node));
 }
 

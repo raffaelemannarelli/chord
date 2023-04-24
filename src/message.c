@@ -91,7 +91,7 @@ void notify_response(int fd) {
 void find_successor_response(int fd, Node *node) {
   ChordMessage msg = CHORD_MESSAGE__INIT;
   FindSuccessorResponse response = FIND_SUCCESSOR_RESPONSE__INIT;
-  Node *p;
+  Node *p = malloc(sizeof(Node));
   node__init(p);
   p->key = node->key, p->port = node->port;
   p->address = node->address;
