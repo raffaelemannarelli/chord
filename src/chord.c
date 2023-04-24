@@ -233,18 +233,28 @@ void handle_message(int fd) {
   close(fd);
 }
 
-void update_successors(int num_successors){
-  if (!nodes_equal(successors[0], &own_node)) {
-    fprintf(stderr, "updating successors\n");
-    ChordMessage placeholder; // remove this when get_succ_list_req parameters are fixed
-    ChordMessage *response = get_successor_list_request(&placeholder, successors[0]);
-    fprintf(stderr, "got response\n");
-    assert(response != NULL);
-    GetSuccessorListResponse *list = response->get_successor_list_response;
-    fprintf(stderr, "got list\n");
-    for (int i = 1; i < n_successors; i++)
-      memcpy(successors[i], &list->successors[i-1], sizeof(Node));
-    chord_message__free_unpacked(response,NULL); 
+void update_successors() {
+  struct timespec curr_time, last_time;
+  clock_gettime(CLOCK_REALTIME, &last_time);
+
+  while (1) {
+    clock_gettime(CLOCK_REALTIME, &curr_time);
+    if (time_diff(&last_time, &curr_time) < 1.0)
+      continue;
+    clock_gettime(CLOCK_REALTIME, &last_time);
+    
+    if (!nodes_equal(successors[0], &own_node)) {
+      fprintf(stderr, "updating successors\n");
+      ChordMessage placeholder; // remove this when get_succ_list_req parameters are fixed
+      ChordMessage *response = get_successor_list_request(&placeholder, successors[0]);
+      fprintf(stderr, "got response\n");
+      assert(response != NULL);
+      GetSuccessorListResponse *list = response->get_successor_list_response;
+      fprintf(stderr, "got list\n");
+      for (int i = 1; i < n_successors; i++)
+	memcpy(successors[i], list->successors[i-1], sizeof(Node));
+      chord_message__free_unpacked(response,NULL); 
+    }
   }
 }
 
@@ -324,7 +334,7 @@ int main(int argc, char *argv[]) {
   } else {
     join(&(args.join_address));
     // TODO: need to get all sucessor nodes after node obtained during join
-    update_successors(args.num_successors);
+    //update_successors(args.num_successors);
   }
     
   // pfds table and book-keeping to manage all connections
@@ -346,6 +356,9 @@ int main(int argc, char *argv[]) {
   // separate thread handles calling update functions
   pthread_t update_id;
   pthread_create(&update_id, NULL, &update_chord, &args);
+
+  pthread_t update_succ_id;
+  pthread_create(&update_succ_id, NULL, &update_successors, NULL);
   
   while (1) {
     int p = poll(pfds, 2, 100);    

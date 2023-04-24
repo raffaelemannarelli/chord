@@ -42,6 +42,7 @@ void check_predecessor();
 void create();
 void join(struct sockaddr_in *join_addr);
 void init_finger_table();
+void update_successors();
 void handle_message(int fd);
 void handle_command();
 void print_node(Node *node);
