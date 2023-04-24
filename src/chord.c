@@ -49,7 +49,6 @@ void stabilize() {
   // case when no successor known
   if (nodes_equal(successors[0], &own_node)) {
     if (predecessor != &own_node) {
-      successors[0] = malloc(sizeof(Node));
       memcpy(successors[0], predecessor, sizeof(Node));
 
       // update_successor ??
@@ -160,7 +159,7 @@ void create() {
   // predecessor = nil (cannot use NULL as error sending messages)
   predecessor = &own_node; 
   // deal with successors, itself is the successor
-  successors[0] = &own_node;
+  memcpy(successors[0], &own_node, sizeof(Node));
 }
 
 // handles joining a chord to existing ring
@@ -175,7 +174,6 @@ void join(struct sockaddr_in *join_addr) {
   find_successor_request(&response, &node, own_node.key);
   
   // put received node into sucessors list
-  successors[0] = malloc(sizeof(Node));
   memcpy(successors[0],response.find_successor_response->node,sizeof(Node));
 }
 
@@ -244,6 +242,10 @@ void update_successors() {
     clock_gettime(CLOCK_REALTIME, &last_time);
     
     if (!nodes_equal(successors[0], &own_node)) {
+      fprintf(stderr, "BEFORE SUCCESSOR LIST:\n");
+      for (int i = 0; i < n_successors; i++)
+	fprintf(stderr, "  Successor [%d] ", i+1), print_node(successors[i]);
+      
       fprintf(stderr, "updating successors\n");
       ChordMessage placeholder; // remove this when get_succ_list_req parameters are fixed
       ChordMessage *response = get_successor_list_request(&placeholder, successors[0]);
@@ -253,7 +255,11 @@ void update_successors() {
       fprintf(stderr, "got list\n");
       for (int i = 1; i < n_successors; i++)
 	memcpy(successors[i], list->successors[i-1], sizeof(Node));
-      chord_message__free_unpacked(response,NULL); 
+      chord_message__free_unpacked(response,NULL);
+
+      fprintf(stderr, "UPDATED SUCCESSOR LIST:\n");
+      for (int i = 0; i < n_successors; i++)
+	fprintf(stderr, "  Successor [%d] ", i+1), print_node(successors[i]);
     }
   }
 }
