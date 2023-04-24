@@ -93,24 +93,19 @@ void find_successor(Node *to_return, uint64_t id) {
   if (in_bounds_closed(id, own_node.key, successors[0]->key)) {
     memcpy(to_return, successors[0], sizeof(Node));
   } else {
-    fprintf(stderr, "NEED TO CHECK FINGER TABLE\n");
     // rough sketch
     Node prime;
     closest_preceding_node(&prime, id);
     // table has not get updated for proper node, so skip
     if (nodes_equal(&prime, &own_node)) {
-      fprintf(stderr, "IT IS ME ATM\n");
       memcpy(to_return, &own_node, sizeof(Node));
     } else {
-      fprintf(stderr, "IT IS ANOTHER NODE\n");
       ChordMessage response;
       find_successor_request(&response, &prime, id);
-      fprintf(stderr, "GOT RESPONSE\n");
       assert(response.find_successor_response != NULL);
       memcpy(to_return, response.find_successor_response->node,
 	     sizeof(Node));
     }
-    fprintf(stderr, "DONE FIND SUCCESSOR");
   }
 }
 
@@ -328,8 +323,14 @@ int main(int argc, char *argv[]) {
   socklen_t addr_size = sizeof(client_addr);
 
   // separate thread handles calling update functions
-  pthread_t update_id;
-  pthread_create(&update_id, NULL, &update_chord, &args);
+  pthread_t stab_id;
+  pthread_create(&stab_id, NULL, &update_chord_stab, &args);
+  pthread_t ff_id;
+  pthread_create(&ff_id, NULL, &update_chord_ff, &args);
+  pthread_t cp_id;
+  pthread_create(&cp_id, NULL, &update_chord_cp, &args);
+  pthread_t us_id;
+  pthread_create(&us_id, NULL, &update_chord_us, &args);
 
   // main while loop
   while (1) {

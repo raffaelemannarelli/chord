@@ -77,13 +77,10 @@ uint64_t hash_addr(struct sockaddr_in *addr) {
 }
 
 // calls update functions if time interval has passed
-void update_chord(struct chord_arguments *args) {
+void update_chord_stab(struct chord_arguments *args) {
   // track time
-  struct timespec curr_time, last_stab, last_ff, last_cp, last_us;
+  struct timespec curr_time, last_stab;
   clock_gettime(CLOCK_REALTIME, &last_stab);
-  clock_gettime(CLOCK_REALTIME, &last_ff);
-  clock_gettime(CLOCK_REALTIME, &last_cp);
-  clock_gettime(CLOCK_REALTIME, &last_us);
   
   while (1) {
     clock_gettime(CLOCK_REALTIME, &curr_time);
@@ -92,16 +89,46 @@ void update_chord(struct chord_arguments *args) {
       stabilize();
       clock_gettime(CLOCK_REALTIME, &last_stab);
     }
+  }
+}
+
+void update_chord_ff(struct chord_arguments *args) {
+  // track time
+  struct timespec curr_time, last_ff;
+  clock_gettime(CLOCK_REALTIME, &last_ff);
+
+  while (1) {
+    clock_gettime(CLOCK_REALTIME, &curr_time);
     if (time_diff(&last_ff,&curr_time) >
 	deci_to_sec(args->fix_fingers_period)) {
       fix_fingers();
       clock_gettime(CLOCK_REALTIME, &last_ff);
     }
+  }
+}
+
+void update_chord_cp(struct chord_arguments *args) {
+  // track time
+  struct timespec curr_time, last_cp;
+  clock_gettime(CLOCK_REALTIME, &last_cp);
+  
+  while (1) {
+    clock_gettime(CLOCK_REALTIME, &curr_time);
     if (time_diff(&last_cp,&curr_time) >
 	deci_to_sec(args->check_predecessor_period)) {
       check_predecessor();
       clock_gettime(CLOCK_REALTIME, &last_cp);
     }
+  }
+}
+
+void update_chord_us(struct chord_arguments *args) {
+  // track time
+  struct timespec curr_time, last_us;
+  clock_gettime(CLOCK_REALTIME, &last_us);
+  
+  while (1) {
+    clock_gettime(CLOCK_REALTIME, &curr_time);
     if (time_diff(&last_us,&curr_time) > UPDATE_TIME) {
       update_successors();
       clock_gettime(CLOCK_REALTIME, &last_us);
