@@ -199,13 +199,10 @@ void handle_message(int fd) {
     notify_response(fd);
   } else if (msg->msg_case == CHORD_MESSAGE__MSG_FIND_SUCCESSOR_REQUEST) {
     // finds and returns successor for requesting node
-    fprintf(stderr, "find successor request received\n");
     Node successor;
     find_successor(&successor, msg->find_successor_request->key);
-    fprintf(stderr, "found successor: \n");
     //print_node(&successor);
     find_successor_response(fd, &successor);
-    fprintf(stderr, "sent successor response\n");
   } else if (msg->msg_case == CHORD_MESSAGE__MSG_GET_PREDECESSOR_REQUEST) {
     // get predecessor
     // TODO: HOW DOES THIS BEHAVE IF PREDECESSOR == NULL???
