@@ -13,7 +13,7 @@
 #include "message.h"
 
 // hopefully this is large enough
-#define BUFFER_SIZE 256
+#define BUFFER_SIZE 1024
 
 // REQUEST FUNCTIONS
 void notify_request(ChordMessage *to_return,
