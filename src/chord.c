@@ -231,23 +231,19 @@ void handle_message(int fd) {
 void update_successors() {
   if (!nodes_equal(successors[0], &own_node)) {
     fprintf(stderr, "BEFORE SUCCESSOR LIST:\n");
-    for (int i = 0; i < n_successors; i++)
-	fprintf(stderr, "  Successor [%d] ", i+1), print_node(successors[i]);
       
-      fprintf(stderr, "updating successors\n");   
-      ChordMessage *response = get_successor_list_request(successors[0]);
-      fprintf(stderr, "got response\n");
-      assert(response != NULL);
-      GetSuccessorListResponse *list = response->get_successor_list_response;
-      fprintf(stderr, "got list\n");
-      for (int i = 1; i < n_successors; i++)
-	memcpy(successors[i], list->successors[i-1], sizeof(Node));
-      chord_message__free_unpacked(response,NULL);
-
-      fprintf(stderr, "UPDATED SUCCESSOR LIST:\n");
-      for (int i = 0; i < n_successors; i++)
-	fprintf(stderr, "  Successor [%d] ", i+1), print_node(successors[i]);
-      //}
+    fprintf(stderr, "updating successors\n");   
+    ChordMessage *response = get_successor_list_request(successors[0]);
+    fprintf(stderr, "got response\n");
+    assert(response != NULL);
+    GetSuccessorListResponse *list = response->get_successor_list_response;
+    assert(list != NULL);
+    fprintf(stderr, "got list of len %d\n", list->n_successors);
+    for (int i = 1; i < n_successors; i++) 
+      memcpy(successors[i], list->successors[i-1], sizeof(Node));
+    chord_message__free_unpacked(response,NULL);
+    
+    fprintf(stderr, "UPDATED SUCCESSOR LIST:\n");
   }
 }
 
