@@ -16,7 +16,7 @@
 #include "message.h"
 
 #define BACKLOG 16
-#define UPDATE_TIME 1.0
+#define UPDATE_TIME .5
 // returns double of t2 - t1
 double time_diff(struct timespec *t1, struct timespec *t2) {
   double result = (double) (t2->tv_sec - t1->tv_sec);
