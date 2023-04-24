@@ -115,7 +115,7 @@ void addr_from_node(struct sockaddr_in *addr, Node *node) {
   addr->sin_port = node->port;
 }
 
-int in_bounds(int x, int a, int b) {
+int in_bounds(uint64_t x, uint64_t a, uint64_t b) {
   if (a == b) {
     return 1;
   } else if (a < b) {
@@ -131,7 +131,7 @@ int in_bounds(int x, int a, int b) {
   }
 }
 
-int in_bounds_closed(int x, int a, int b) {
+int in_bounds_closed(uint64_t x, uint64_t a, uint64_t b) {
   if (a == b) {
     return 1;
   } if (a < b) {
