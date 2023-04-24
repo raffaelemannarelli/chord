@@ -113,7 +113,6 @@ void closest_preceding_node(Node *to_return, uint64_t id){
   for(int i = FINGER_SIZE-1; i >= 0; i--)
     if (in_bounds(finger_table[i].key, own_node.key, id)) {
       memcpy(to_return, &finger_table[i], sizeof(Node));
-      return;
     }
   memcpy(to_return, &own_node, sizeof(Node));
 }
