@@ -148,8 +148,12 @@ int in_bounds_closed(int x, int a, int b) {
 }
 
 int nodes_equal(Node *n1, Node *n2) {
-  if (memcmp(n1, n2, sizeof(Node)) == 0)
+  /*if (memcmp(n1, n2, sizeof(Node)) == 0)
     return 1;
   else
+  return 0;*/
+  if (n1->port != n2->port || n1->address != n2->address ||
+      n1->key != n2->key)
     return 0;
+  return 1;
 }

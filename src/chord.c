@@ -99,7 +99,7 @@ void find_successor(Node *to_return, uint64_t id) {
     closest_preceding_node(&prime, id);
     // table has not get updated for proper node, so skip
     if (nodes_equal(&prime, &own_node)) {
-      fprintf(stderr, "IT IS ME ATM");
+      fprintf(stderr, "IT IS ME ATM\n");
       memcpy(to_return, &own_node, sizeof(Node));
     } else {
       fprintf(stderr, "IT IS ANOTHER NODE\n");
