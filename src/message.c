@@ -99,6 +99,7 @@ void find_successor_response(int fd, Node *node) {
   msg.msg_case = CHORD_MESSAGE__MSG_FIND_SUCCESSOR_RESPONSE;
   msg.find_successor_response = &response;
   pack_and_send(fd, &msg);
+  free(p);
 }
 
 void rFindSuccResp(int fd, int key, Node *node) {

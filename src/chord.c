@@ -123,7 +123,8 @@ void fix_fingers() {
   // TODO: does key+val need a modulus?
   fprintf(stderr, "fixing %dth", next+1);
   // set to find successor queury
-  find_successor(&finger_table[next], own_node.key+(1<<(next)));
+  uint64_t add_val = 1;
+  find_successor(&finger_table[next], own_node.key+(add_val<<(next)));
   // loop next
   if(++next >= FINGER_SIZE)
     next = 0;
