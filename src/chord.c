@@ -295,7 +295,7 @@ void handle_command() {
 
 // TODO: implement message look-up
 void look_up(uint64_t key) {
-  if (successors[0] == &own_node) {
+  if (nodes_equal(successors[0], &own_node)) {
     // one node case
     print_node(&own_node);
   } else {
