@@ -81,14 +81,11 @@ void stabilize() {
 // RPC; replaces pred if potential pred is after pred
 void notify(Node *pot_pred) {
   if (predecessor == &own_node) {
-    //fprintf(stderr, "was set to own node\n");
     predecessor = malloc(sizeof(Node));
     memcpy(predecessor, pot_pred, sizeof(Node));
-    //fprintf(stderr, "pred set to %d\n", predecessor->port);
   } else if (in_bounds(pot_pred->key, predecessor->key,
 		       own_node.key)) {
     memcpy(predecessor, pot_pred, sizeof(Node));
-    //fprintf(stderr, "pred set to %d\n", predecessor->port);
   }
 }
 
@@ -104,7 +101,6 @@ void find_successor(Node *to_return, uint64_t id) {
     if (nodes_equal(&prime, &own_node)) {
       fprintf(stderr, "IT IS ME ATM");
       memcpy(to_return, &own_node, sizeof(Node));
-      return;
     } else {
       fprintf(stderr, "IT IS ANOTHER NODE\n");
       ChordMessage response;
@@ -120,8 +116,10 @@ void find_successor(Node *to_return, uint64_t id) {
 
 void closest_preceding_node(Node *to_return, uint64_t id){
   for(int i = FINGER_SIZE-1; i >= 0; i--)
-    if (in_bounds(finger_table[i].key, own_node.key, id))
+    if (in_bounds(finger_table[i].key, own_node.key, id)) {
       memcpy(to_return, &finger_table[i], sizeof(Node));
+      return;
+    }
   memcpy(to_return, &own_node, sizeof(Node));
 }
 
@@ -176,8 +174,12 @@ void join(struct sockaddr_in *join_addr) {
 
 // initialize entire finger table to point to current node
 void init_finger_table() {
-  for (int i = 0; i < FINGER_SIZE; i++)
-    finger_table[i] = own_node;
+  for (int i = 0; i < FINGER_SIZE; i++) {
+    node__init(&finger_table[i]);
+    finger_table[i].key = own_node.key;
+    finger_table[i].port = own_node.port;
+    finger_table[i].address = own_node.address;
+  }
 }
 
 void handle_message(int fd) {
