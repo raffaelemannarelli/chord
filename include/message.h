@@ -25,8 +25,7 @@ void get_predecessor_request(ChordMessage *to_return,
                           Node *send_to);
 void check_predecessor_request(ChordMessage *to_return,
 			       Node *send_to);
-ChordMessage* get_successor_list_request(ChordMessage *to_return,
-					 Node *send_to);
+ChordMessage* get_successor_list_request(Node *send_to);
 
 // RESPONSES
 void notify_response(int fd);

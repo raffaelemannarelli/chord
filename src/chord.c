@@ -21,8 +21,6 @@
 // TODO:
 //   - TODO: put locks on variables
 //   - CRASH DURING SIMUTANEOUS STABILIZES
-//   - handle command line lookup
-//   - fill/utilize the entire successor list
 //   - implement other functions
 //   - prevent crashes when other nodes disconnect
 //   - may be able to use query_id to hold fd info in nodes
@@ -42,7 +40,6 @@ void printKey(uint64_t key) {
   printf("%" PRIu64, key);
 }
 
-// may have to change connects---- it blocks :(
 void stabilize() {
   fprintf(stderr, "stabil");
 
@@ -232,23 +229,13 @@ void handle_message(int fd) {
 }
 
 void update_successors() {
-  //struct timespec curr_time, last_time;
-  //clock_gettime(CLOCK_REALTIME, &last_time);
-
-  //  while (1) {
-    //clock_gettime(CLOCK_REALTIME, &curr_time);
-    //if (time_diff(&last_time, &curr_time) < 1.0)
-    //  continue;
-    //clock_gettime(CLOCK_REALTIME, &last_time);
-    
   if (!nodes_equal(successors[0], &own_node)) {
     fprintf(stderr, "BEFORE SUCCESSOR LIST:\n");
     for (int i = 0; i < n_successors; i++)
 	fprintf(stderr, "  Successor [%d] ", i+1), print_node(successors[i]);
       
-      fprintf(stderr, "updating successors\n");
-      ChordMessage placeholder; // remove this when get_succ_list_req parameters are fixed
-      ChordMessage *response = get_successor_list_request(&placeholder, successors[0]);
+      fprintf(stderr, "updating successors\n");   
+      ChordMessage *response = get_successor_list_request(successors[0]);
       fprintf(stderr, "got response\n");
       assert(response != NULL);
       GetSuccessorListResponse *list = response->get_successor_list_response;
@@ -263,8 +250,6 @@ void update_successors() {
       //}
   }
 }
-
-
 
 // handles commands from stdin
 void handle_command() {
@@ -339,8 +324,6 @@ int main(int argc, char *argv[]) {
     create();
   } else {
     join(&(args.join_address));
-    // TODO: need to get all sucessor nodes after node obtained during join
-    //update_successors(args.num_successors);
   }
     
   // pfds table and book-keeping to manage all connections
@@ -353,48 +336,25 @@ int main(int argc, char *argv[]) {
   struct sockaddr_in client_addr;
   socklen_t addr_size = sizeof(client_addr);
 
-  // three threads
-  // put mutex around global vars
-  // main loop
-  // fprintf(stderr, "entering listening loop with successor port %hu\n",
-  // successors[0]->port);
-
   // separate thread handles calling update functions
   pthread_t update_id;
   pthread_create(&update_id, NULL, &update_chord, &args);
 
-  //pthread_t update_succ_id;
-  //pthread_create(&update_succ_id, NULL, &update_successors, NULL);
-  
+  // main while loop
   while (1) {
     int p = poll(pfds, 2, 100);    
 
-
-    // could we not just do
-
-    // if (pfds[0].revents & POLLIN) handle_command();
-    // if (pfds[1].revents & POLLIN){
-    //     int fd = accept(listenfd,(struct sockaddr*)&client_addr,&addr_size);
-    //     assert(fd >= 0);
-    //     pthread_t thread_id;
-	  //     pthread_create(&thread_id, NULL, &handle_message, (void*) fd);
-    // }
-
     fprintf(stderr, ".");
-    for (int i = 0; i < 2 && p != 0; i++) {
-      if (pfds[i].revents & POLLIN) { // if we have a conncetion
-	if (pfds[i].fd == STDIN_FILENO) {
-	  handle_command();
-	} else if (pfds[i].fd == listenfd) {
-	  // socket that listen for incoming connections
-          int fd = accept(listenfd,(struct sockaddr*)&client_addr,&addr_size);
-          assert(fd >= 0);
+    if (pfds[0].revents & POLLIN) { // if we have a conncetion
+      handle_command();
+    }
 
-	  pthread_t thread_id;
-	  pthread_create(&thread_id, NULL, &handle_message, (void*) fd);
-	}
-      } // end of pfds.revents pollin if statement
-    } // end of p_cons loop
-  }      
+    if (pfds[1].revents & POLLIN) {
+      int fd = accept(listenfd,(struct sockaddr*)&client_addr,&addr_size);
+      assert(fd >= 0);      
+      pthread_t thread_id;
+      pthread_create(&thread_id, NULL, &handle_message, (void*) fd);
+    }
+  } 
   return 0;
 }

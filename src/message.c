@@ -70,14 +70,13 @@ void check_predecessor_request(ChordMessage *to_return,
   send_and_return(to_return, &msg, send_to);
 }
 
-ChordMessage* get_successor_list_request(ChordMessage *to_return,
-				Node *send_to) {
+ChordMessage* get_successor_list_request(Node *send_to) {
   ChordMessage msg = CHORD_MESSAGE__INIT;
   GetSuccessorListRequest request = GET_SUCCESSOR_LIST_REQUEST__INIT;
   msg.msg_case = CHORD_MESSAGE__MSG_GET_SUCCESSOR_LIST_REQUEST;
   msg.get_successor_list_request = &request;
 
-  return send_and_return(to_return, &msg, send_to);
+  return send_and_return(NULL, &msg, send_to);
 }
 
 // RESPONSE FUNCTIONS
