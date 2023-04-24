@@ -16,7 +16,7 @@
 #include "message.h"
 
 #define BACKLOG 16
-
+#define UPDATE_TIME 10.0
 // returns double of t2 - t1
 double time_diff(struct timespec *t1, struct timespec *t2) {
   double result = (double) (t2->tv_sec - t1->tv_sec);
@@ -79,11 +79,11 @@ uint64_t hash_addr(struct sockaddr_in *addr) {
 // calls update functions if time interval has passed
 void update_chord(struct chord_arguments *args) {
   // track time
-  struct timespec curr_time, last_stab, last_ff, last_cp;
+  struct timespec curr_time, last_stab, last_ff, last_cp, last_us;
   clock_gettime(CLOCK_REALTIME, &last_stab);
   clock_gettime(CLOCK_REALTIME, &last_ff);
   clock_gettime(CLOCK_REALTIME, &last_cp);
-
+  clock_gettime(CLOCK_REALTIME, &last_us);
   
   while (1) {
     clock_gettime(CLOCK_REALTIME, &curr_time);
@@ -101,6 +101,10 @@ void update_chord(struct chord_arguments *args) {
 	deci_to_sec(args->check_predecessor_period)) {
       check_predecessor();
       clock_gettime(CLOCK_REALTIME, &last_cp);
+    }
+    if (time_diff(&last_us,&curr_time) > UPDATE_TIME) {
+      update_successors();
+      clock_gettime(CLOCK_REALTIME, &last_us);
     }
   }
 }

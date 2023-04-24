@@ -130,11 +130,12 @@ void get_successor_list_response(int fd, Node **successors, int num) {
   ChordMessage msg = CHORD_MESSAGE__INIT;
   GetSuccessorListResponse response = GET_SUCCESSOR_LIST_RESPONSE__INIT;
   Node **nodes = malloc(sizeof(Node*)*num);
+  fprintf(stderr, "copying list of size %d\n", num);
   for (int i = 0; i < num; i++) {
     nodes[i] = malloc(sizeof(Node));
     memcpy(nodes[i], successors[i], sizeof(Node));
   }
-
+  fprintf(stderr, "done copying list\n");
   response.n_successors = num;
   response.successors = nodes;
   msg.msg_case = CHORD_MESSAGE__MSG_GET_SUCCESSOR_LIST_RESPONSE;
@@ -144,7 +145,6 @@ void get_successor_list_response(int fd, Node **successors, int num) {
     free(nodes[i]);
   free(nodes);
 }
-
 
 
 /*******************************************/

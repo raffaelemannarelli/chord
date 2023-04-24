@@ -95,7 +95,7 @@ void notify(Node *pot_pred) {
   }
 }
 
-void find_successor(Node *to_return, uint64_t id) {  
+void find_successor(Node *to_return, uint64_t id) {
   if (in_bounds_closed(id, own_node.key, successors[0]->key)) {
     memcpy(to_return, successors[0], sizeof(Node));
   } else {
@@ -104,7 +104,7 @@ void find_successor(Node *to_return, uint64_t id) {
     Node prime;
     closest_preceding_node(&prime, id);
     // table has not get updated for proper node, so skip
-    if (memcmp(&prime, &own_node, sizeof(Node)) == 0) {
+    if (nodes_equal(&prime, &own_node)) {
       fprintf(stderr, "IT IS ME ATM");
       memcpy(to_return, &own_node, sizeof(Node));
       return;
@@ -232,18 +232,18 @@ void handle_message(int fd) {
 }
 
 void update_successors() {
-  struct timespec curr_time, last_time;
-  clock_gettime(CLOCK_REALTIME, &last_time);
+  //struct timespec curr_time, last_time;
+  //clock_gettime(CLOCK_REALTIME, &last_time);
 
-  while (1) {
-    clock_gettime(CLOCK_REALTIME, &curr_time);
-    if (time_diff(&last_time, &curr_time) < 1.0)
-      continue;
-    clock_gettime(CLOCK_REALTIME, &last_time);
+  //  while (1) {
+    //clock_gettime(CLOCK_REALTIME, &curr_time);
+    //if (time_diff(&last_time, &curr_time) < 1.0)
+    //  continue;
+    //clock_gettime(CLOCK_REALTIME, &last_time);
     
-    if (!nodes_equal(successors[0], &own_node)) {
-      fprintf(stderr, "BEFORE SUCCESSOR LIST:\n");
-      for (int i = 0; i < n_successors; i++)
+  if (!nodes_equal(successors[0], &own_node)) {
+    fprintf(stderr, "BEFORE SUCCESSOR LIST:\n");
+    for (int i = 0; i < n_successors; i++)
 	fprintf(stderr, "  Successor [%d] ", i+1), print_node(successors[i]);
       
       fprintf(stderr, "updating successors\n");
@@ -260,7 +260,7 @@ void update_successors() {
       fprintf(stderr, "UPDATED SUCCESSOR LIST:\n");
       for (int i = 0; i < n_successors; i++)
 	fprintf(stderr, "  Successor [%d] ", i+1), print_node(successors[i]);
-    }
+      //}
   }
 }
 
@@ -363,8 +363,8 @@ int main(int argc, char *argv[]) {
   pthread_t update_id;
   pthread_create(&update_id, NULL, &update_chord, &args);
 
-  pthread_t update_succ_id;
-  pthread_create(&update_succ_id, NULL, &update_successors, NULL);
+  //pthread_t update_succ_id;
+  //pthread_create(&update_succ_id, NULL, &update_successors, NULL);
   
   while (1) {
     int p = poll(pfds, 2, 100);    
