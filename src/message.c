@@ -158,6 +158,7 @@ void pack_and_send(int fd, ChordMessage *msg) {
   chord_message__pack(msg, buf);
   int s = send(fd, buf, msg_len, 0);
   assert(s >= 0);
+  close(fd);
 }
 
 // sends message, gets response, and copies to to_return

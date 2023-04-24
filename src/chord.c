@@ -223,9 +223,8 @@ void handle_message(int fd) {
     // r find successor
     //fprintf(stderr, "r find successor request received\n");
   }
-  
+
   chord_message__free_unpacked(msg, NULL);
-  close(fd);
 }
 
 void update_successors() {
